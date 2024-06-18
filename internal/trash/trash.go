@@ -149,7 +149,14 @@ func Remove(files []Info) (removed int, err error) {
 	for _, file := range files {
 		log.Infof("removing %s permanently forever!!!", file.name)
 		if err = os.Remove(file.path); err != nil {
-			return removed, err
+			if i, e := os.Stat(file.path); e == nil && i.IsDir() {
+				err = os.RemoveAll(file.path)
+				if err != nil {
+					return removed, err
+				}
+			} else {
+				return removed, err
+			}
 		}
 		if err = os.Remove(file.trashinfo); err != nil {
 			return removed, err

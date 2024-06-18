@@ -29,6 +29,7 @@ var (
 	loglvl        string
 	f             *filter.Filter
 	o, b, a, g, p string
+	ung, unp      string
 	workdir       string
 	recursive     bool
 	termwidth     int
@@ -59,7 +60,7 @@ var (
 	before_commands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -226,6 +227,18 @@ var (
 			Usage:       "operate on files matching `GLOB`",
 			Aliases:     []string{"g"},
 			Destination: &g,
+		},
+		&cli.StringFlag{
+			Name:        "not-match",
+			Usage:       "operate on files not matching regex `PATTERN`",
+			Aliases:     []string{"M"},
+			Destination: &unp,
+		},
+		&cli.StringFlag{
+			Name:        "not-glob",
+			Usage:       "operate on files not matching `GLOB`",
+			Aliases:     []string{"G"},
+			Destination: &ung,
 		},
 		&cli.StringFlag{
 			Name:        "on",

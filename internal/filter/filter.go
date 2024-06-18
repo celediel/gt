@@ -14,8 +14,10 @@ import (
 type Filter struct {
 	on, before, after time.Time
 	glob, pattern     string
+	unglob, unpattern string
 	filenames         []string
 	matcher           *regexp.Regexp
+	unmatcher         *regexp.Regexp
 }
 
 func (f *Filter) On() time.Time       { return f.on }
@@ -47,6 +49,14 @@ func (f *Filter) Match(filename string, modified time.Time) bool {
 			return false
 		}
 	}
+	if f.has_unregex() && f.unmatcher.MatchString(filename) {
+		return false
+	}
+	if f.unglob != "" {
+		if match, err := filepath.Match(f.unglob, filename); err != nil || match {
+			return false
+		}
+	}
 	if len(f.filenames) > 0 && !slices.Contains(f.filenames, filename) {
 		return false
 	}
@@ -61,10 +71,19 @@ func (f *Filter) SetPattern(pattern string) error {
 	return err
 }
 
+func (f *Filter) SetUnPattern(unpattern string) error {
+	var err error
+	f.unpattern = unpattern
+	f.unmatcher, err = regexp.Compile(f.unpattern)
+	return err
+}
+
 func (f *Filter) Blank() bool {
 	t := time.Time{}
 	return !f.has_regex() &&
+		!f.has_unregex() &&
 		f.glob == "" &&
+		f.unglob == "" &&
 		f.after.Equal(t) &&
 		f.before.Equal(t) &&
 		f.on.Equal(t) &&
@@ -72,13 +91,18 @@ func (f *Filter) Blank() bool {
 }
 
 func (f *Filter) String() string {
-	var m string
+	var m, unm string
 	if f.matcher != nil {
 		m = f.matcher.String()
 	}
-	return fmt.Sprintf("on:'%s' before:'%s' after:'%s' glob:'%s' regex:'%s' filenames:'%v'",
+	if f.unmatcher != nil {
+		unm = f.unmatcher.String()
+	}
+	return fmt.Sprintf("on:'%s' before:'%s' after:'%s' glob:'%s' regex:'%s' unglob:'%s' unregex:'%s' filenames:'%v'",
 		f.on, f.before, f.after,
-		f.glob, m, f.filenames,
+		f.glob, m,
+		f.unglob, unm,
+		f.filenames,
 	)
 }
 
@@ -89,45 +113,59 @@ func (f *Filter) has_regex() bool {
 	return f.matcher.String() != ""
 }
 
-func New(o, b, a, g, p string, names ...string) (*Filter, error) {
-	// o b a g p
+func (f *Filter) has_unregex() bool {
+	if f.unmatcher == nil {
+		return false
+	}
+	return f.unmatcher.String() != ""
+}
+
+func New(on, before, after, glob, pattern, unglob, unpattern string, names ...string) (*Filter, error) {
 	var (
 		err error
 		now = time.Now()
 	)
 
 	f := &Filter{
-		glob:      g,
+		glob:      glob,
+		unglob:    unglob,
 		filenames: append([]string{}, names...),
 	}
 
-	if o != "" {
-		on, err := anytime.Parse(o, now)
+	if on != "" {
+		o, err := anytime.Parse(on, now)
 		if err != nil {
 			return &Filter{}, err
 		}
-		f.on = on
+		f.on = o
 	}
 
-	if a != "" {
-		after, err := anytime.Parse(a, now)
+	if after != "" {
+		a, err := anytime.Parse(after, now)
 		if err != nil {
 			return &Filter{}, err
 		}
-		f.after = after
+		f.after = a
 	}
 
-	if b != "" {
-		before, err := anytime.Parse(b, now)
+	if before != "" {
+		b, err := anytime.Parse(before, now)
 		if err != nil {
 			return &Filter{}, err
 		}
-		f.before = before
+		f.before = b
 	}
 
-	err = f.SetPattern(p)
+	err = f.SetPattern(pattern)
+	if err != nil {
+		return nil, err
+	}
+	err = f.SetUnPattern(unpattern)
+	if err != nil {
+		return nil, err
+	}
 
-	return f, err
+	return f, nil
 }
 
 func same_day(a, b time.Time) bool {

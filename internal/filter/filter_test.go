@@ -22,6 +22,7 @@ var (
 
 type testholder struct {
 	pattern, glob     string
+	unpattern, unglob string
 	before, after, on string
 	filenames         []string
 	good, bad         []singletest
@@ -47,7 +48,7 @@ func testmatch(t *testing.T, testers []testholder) {
 		err error
 	)
 	for _, tester := range testers {
-		f, err = New(tester.on, tester.before, tester.after, tester.glob, tester.pattern, tester.filenames...)
+		f, err = New(tester.on, tester.before, tester.after, tester.glob, tester.pattern, tester.unglob, tester.unpattern, tester.filenames...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -261,6 +262,46 @@ func TestFilterGlob(t *testing.T) {
 	})
 }
 
+func TestFilterUnMatch(t *testing.T) {
+	testmatch(t, []testholder{
+		{
+			unpattern: "^ss_.*\\.zip",
+			good:      blanktime("hello.zip", "ss_potato.png", "sss.zip"),
+			bad:       blanktime("ss_ost_flac.zip", "ss_guide.zip", "ss_controls.zip"),
+		},
+		{
+			unpattern: "^h.*o$",
+			good:      blanktime("hi", "test", "hellO", "Hello", "oh hello there"),
+			bad:       blanktime("hello", "hippo", "how about some pasta with alfredo"),
+		},
+	})
+}
+
+func TestFilterUnGlob(t *testing.T) {
+	testmatch(t, []testholder{
+		{
+			unglob: "*.txt",
+			good:   blanktime("test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			bad:    blanktime("test.txt", "alsotest.txt"),
+		},
+		{
+			unglob: "*.tar.*",
+			good:   blanktime("test.tar", "test.txt", "test.targz", "test.tgz"),
+			bad:    blanktime("test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
+		},
+		{
+			unglob: "pot*o",
+			good:   blanktime("salad", "test", "alsotest"),
+			bad:    blanktime("potato", "potdonkeyo", "potesto"),
+		},
+		{
+			unglob: "t?st",
+			good:   blanktime("best", "fast", "most", "past"),
+			bad:    blanktime("test", "tast", "tfst", "tnst"),
+		},
+	})
+}
+
 func TestFilterFilenames(t *testing.T) {
 	testmatch(t, []testholder{
 		{
@@ -282,6 +323,12 @@ func TestFilterFilenames(t *testing.T) {
 }
 
 func TestFilterMultipleParameters(t *testing.T) {
+	y, m, d := now.Date()
+	threepm := time.Date(y, m, d, 15, 0, 0, 0, time.Local)
+	tenpm := time.Date(y, m, d, 22, 0, 0, 0, time.Local)
+	twoam := time.Date(y, m, d, 2, 0, 0, 0, time.Local)
+	sevenam := time.Date(y, m, d, 7, 0, 0, 0, time.Local)
+
 	testmatch(t, []testholder{
 		{
 			pattern: "[Tt]est",
@@ -318,8 +365,21 @@ func TestFilterMultipleParameters(t *testing.T) {
 			on:     "today",
 			after:  "two weeks ago",
 			before: "one week ago",
-			good:   blankfilename(now, time.Date(now.Year(), now.Month(), now.Day(), 18, 42, 0, 0, time.Local), time.Date(now.Year(), now.Month(), now.Day(), 8, 17, 33, 0, time.Local)),
+			good:   blankfilename(now, twoam, sevenam, threepm, tenpm),
 			bad:    blankfilename(yesterday, oneweekago, onemonthago, oneyearago),
+		},
+		{
+			unpattern: ".*\\.(jpg|png)",
+			on:        "today",
+			good: []singletest{
+				{filename: "test.txt", modified: now},
+				{filename: "hello.md", modified: tenpm},
+			},
+			bad: []singletest{
+				{filename: "test.png", modified: now},
+				{filename: "test.jpg", modified: twoam},
+				{filename: "hello.md", modified: twomonthsago},
+			},
 		},
 	})
 }
@@ -327,7 +387,7 @@ func TestFilterMultipleParameters(t *testing.T) {
 func TestFilterBlank(t *testing.T) {
 	var f *Filter
 	t.Run("new", func(t *testing.T) {
-		f, _ = New("", "", "", "", "")
+		f, _ = New("", "", "", "", "", "", "")
 		if !f.Blank() {
 			t.Fatalf("filter isn't blank? %s", f)
 		}
@@ -352,6 +412,12 @@ func TestFilterNotBlank(t *testing.T) {
 				glob: "*test*",
 			},
 			{
+				unpattern: ".*\\.(jpg|png)",
+			},
+			{
+				unglob: "*.jpg",
+			},
+			{
 				before: "yesterday",
 				after:  "one week ago",
 			},
@@ -369,7 +435,7 @@ func TestFilterNotBlank(t *testing.T) {
 
 	for _, tester := range testers {
 		t.Run("notblank"+tester.String(), func(t *testing.T) {
-			f, _ = New(tester.on, tester.before, tester.after, tester.glob, tester.pattern, tester.filenames...)
+			f, _ = New(tester.on, tester.before, tester.after, tester.glob, tester.pattern, tester.unglob, tester.unpattern, tester.filenames...)
 			if f.Blank() {
 				t.Fatalf("filter is blank?? %s", f)
 			}

@@ -280,7 +280,7 @@ var (
 	alreadyintrash_flags = []cli.Flag{
 		&cli.PathFlag{
 			Name:        "original-path",
-			Usage:       "restore files trashed from this `DIRECTORY`",
+			Usage:       "operate on files trashed from this `DIRECTORY`",
 			Aliases:     []string{"O"},
 			Destination: &ogdir,
 		},

@@ -178,6 +178,9 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 type keyMap struct {
 	mark key.Binding
 	doit key.Binding
+	todo key.Binding
+	nada key.Binding
+	invr key.Binding
 	quit key.Binding
 }
 
@@ -185,15 +188,27 @@ func defaultKeyMap() keyMap {
 	return keyMap{
 		mark: key.NewBinding(
 			key.WithKeys(space),
-			key.WithHelp("space", "toggle selected"),
+			key.WithHelp("space", "toggle"),
 		),
 		doit: key.NewBinding(
 			key.WithKeys("enter", "y"),
 			key.WithHelp("enter/y", "confirm"),
 		),
+		todo: key.NewBinding(
+			key.WithKeys("a", "ctrl+a"),
+			key.WithHelp("a", "select all"),
+		),
+		nada: key.NewBinding(
+			key.WithKeys("n", "ctrl+n"),
+			key.WithHelp("n", "select none"),
+		),
+		invr: key.NewBinding(
+			key.WithKeys("i", "ctrl+i"),
+			key.WithHelp("i", "invert selection"),
+		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q/^c", "quit"),
+			key.WithHelp("q", "quit"),
 		),
 	}
 }
@@ -212,14 +227,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.mark):
-			m.select_item(m.table.SelectedRow(), m.table.Cursor())
+			m.toggle_item(m.table.Cursor())
 		case key.Matches(msg, m.keys.doit):
 			if !m.readonly {
 				return m, tea.Quit
 			}
+		case key.Matches(msg, m.keys.nada):
+			m.unselect_all()
+		case key.Matches(msg, m.keys.todo):
+			m.select_all()
+		case key.Matches(msg, m.keys.invr):
+			m.invert_selection()
 		case key.Matches(msg, m.keys.quit):
-			m.selected = []int{}
-			return m, tea.Quit
+			return m.quit()
 		}
 	}
 
@@ -268,8 +288,30 @@ func (m model) footer() string {
 	return regulartext.Render(m.showHelp())
 }
 
-// select_item selects an item, and returns its current selected state
-func (m *model) select_item(row table.Row, index int) (selected bool) {
+func (m model) quit() (model, tea.Cmd) {
+	m.unselect_all()
+	m.table.SetStyles(makeUnselectedStyle())
+	return m, tea.Quit
+}
+
+// update_row updates row of `index` with `row`
+func (m *model) update_row(index int, selected bool /* , row table.Row */) {
+	rows := m.table.Rows()
+	row := rows[index]
+	rows[index] = table.Row{
+		row[0],
+		row[1],
+		row[2],
+		row[3],
+		getCheck(selected),
+	}
+
+	m.table.SetRows(rows)
+
+}
+
+// toggle_item toggles an item's selected state, and returns the state
+func (m *model) toggle_item(index int) (selected bool) {
 	if m.readonly {
 		return false
 	}
@@ -286,18 +328,37 @@ func (m *model) select_item(row table.Row, index int) (selected bool) {
 	}
 
 	// update the rows with the state
-	rows := m.table.Rows()
-	rows[index] = table.Row{
-		row[0],
-		row[1],
-		row[2],
-		row[3],
-		getCheck(selected),
+	m.update_row(index, selected)
+	return
+}
+
+func (m *model) select_all() {
+	if m.readonly {
+		return
 	}
 
-	m.table.SetRows(rows)
+	m.selected = []int{}
+	for i := range m.table.Rows() {
+		m.selected = append(m.selected, i)
+		m.update_row(i, true)
+	}
+}
 
-	return
+func (m *model) unselect_all() {
+	if m.readonly {
+		return
+	}
+
+	m.selected = []int{}
+	for i := range m.table.Rows() {
+		m.update_row(i, false)
+	}
+}
+
+func (m *model) invert_selection() {
+	for i := range m.table.Rows() {
+		m.toggle_item(i)
+	}
 }
 
 func InfoTable(is trash.Infos, width, height int, readonly, preselected bool) ([]int, error) {
@@ -344,13 +405,7 @@ func createTable(columns []table.Column, rows []table.Row, height int, readonlyo
 	)
 	t.KeyMap = fixTableKeymap()
 	if readonlyonepage {
-		style := makeStyle()
-		style.Selected = style.Selected.
-			Foreground(lipgloss.NoColor{}).
-			Background(lipgloss.NoColor{}).
-			Bold(false)
-
-		t.SetStyles(style)
+		t.SetStyles(makeUnselectedStyle())
 	} else {
 		t.SetStyles(makeStyle())
 	}
@@ -383,4 +438,13 @@ func makeStyle() table.Styles {
 		Bold(false)
 
 	return s
+}
+
+func makeUnselectedStyle() table.Styles {
+	style := makeStyle()
+	style.Selected = style.Selected.
+		Foreground(lipgloss.NoColor{}).
+		Background(lipgloss.NoColor{}).
+		Bold(false)
+	return style
 }

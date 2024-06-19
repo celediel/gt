@@ -26,13 +26,13 @@ const (
 )
 
 var (
-	loglvl        string
-	f             *filter.Filter
-	o, b, a, g, p string
-	ung, unp      string
-	workdir       string
-	recursive     bool
-	termwidth     int
+	loglvl         string
+	f              *filter.Filter
+	o, b, a, g, p  string
+	ung, unp       string
+	workdir, ogdir cli.Path
+	recursive      bool
+	termwidth      int
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
@@ -111,13 +111,13 @@ var (
 		Name:    "list",
 		Aliases: []string{"ls"},
 		Usage:   "list trashed files",
-		Flags:   slices.Concat(filter_flags),
+		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			files, err := trash.FindFiles(trashDir, f)
+			files, err := trash.FindFiles(trashDir, ogdir, f)
 
 			var msg string
 			if f.Blank() {
@@ -144,13 +144,13 @@ var (
 		Name:    "restore",
 		Aliases: []string{"re"},
 		Usage:   "restore a trashed file or files",
-		Flags:   slices.Concat(filter_flags),
+		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			files, err := trash.FindFiles(trashDir, f)
+			files, err := trash.FindFiles(trashDir, ogdir, f)
 			if len(files) == 0 {
 				fmt.Println("no files to restore")
 				return nil
@@ -178,10 +178,10 @@ var (
 		Name:    "clean",
 		Aliases: []string{"cl"},
 		Usage:   "clean files from trash",
-		Flags:   slices.Concat(filter_flags),
+		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
-			files, err := trash.FindFiles(trashDir, f)
+			files, err := trash.FindFiles(trashDir, ogdir, f)
 			if len(files) == 0 {
 				fmt.Println("no files to clean")
 				return nil
@@ -274,6 +274,15 @@ var (
 			Usage:       "trash files in this `DIRECTORY`",
 			Aliases:     []string{"w"},
 			Destination: &workdir,
+		},
+	}
+
+	alreadyintrash_flags = []cli.Flag{
+		&cli.PathFlag{
+			Name:        "original-path",
+			Usage:       "restore files trashed from this `DIRECTORY`",
+			Aliases:     []string{"O"},
+			Destination: &ogdir,
 		},
 	}
 )

@@ -77,7 +77,7 @@ func (is Infos) Show(width int) {
 	fmt.Println(is.Table(width))
 }
 
-func FindFiles(trashdir string, f *filter.Filter) (files Infos, outerr error) {
+func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr error) {
 	outerr = filepath.WalkDir(trashdir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			log.Debugf("what happened?? what is %s?", err)
@@ -105,6 +105,10 @@ func FindFiles(trashdir string, f *filter.Filter) (files Infos, outerr error) {
 			date, err := time.ParseInLocation(trash_info_date_fmt, s, time.Local)
 			if err != nil {
 				return err
+			}
+
+			if ogdir != "" && filepath.Dir(basepath) != ogdir {
+				return nil
 			}
 
 			if f.Match(filename, date) {

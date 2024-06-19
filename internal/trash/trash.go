@@ -34,6 +34,7 @@ DeletionDate={date}`
 type Info struct {
 	name, ogpath    string
 	path, trashinfo string
+	isdir           bool
 	trashed         time.Time
 	filesize        int64
 }
@@ -46,6 +47,7 @@ func (i Info) OGPath() string     { return i.ogpath }
 func (i Info) TrashInfo() string  { return i.trashinfo }
 func (i Info) Trashed() time.Time { return i.trashed }
 func (i Info) Filesize() int64    { return i.filesize }
+func (i Info) IsDir() bool        { return i.isdir }
 
 func (is Infos) Table(width int) string {
 
@@ -53,8 +55,13 @@ func (is Infos) Table(width int) string {
 	slices.SortStableFunc(is, SortByTrashedReverse)
 	out := [][]string{}
 	for _, file := range is {
-		t := humanize.Time(file.trashed)
-		b := humanize.Bytes(uint64(file.filesize))
+		var t, b string
+		t = humanize.Time(file.trashed)
+		if file.isdir {
+			b = strings.Repeat("─", 3)
+		} else {
+			b = humanize.Bytes(uint64(file.filesize))
+		}
 		out = append(out, []string{
 			file.name,
 			filepath.Dir(file.ogpath),
@@ -119,6 +126,7 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 					ogpath:    basepath,
 					trashinfo: path,
 					trashed:   date,
+					isdir:     info.IsDir(),
 					filesize:  info.Size(),
 				})
 			} else {

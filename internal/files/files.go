@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"git.burning.moe/celediel/gt/internal/filter"
@@ -20,6 +21,7 @@ type File struct {
 	name, path string
 	filesize   int64
 	modified   time.Time
+	isdir      bool
 }
 
 type Files []File
@@ -29,6 +31,7 @@ func (f File) Path() string        { return f.path }
 func (f File) Filename() string    { return filepath.Join(f.path, f.name) }
 func (f File) Modified() time.Time { return f.modified }
 func (f File) Filesize() int64     { return f.filesize }
+func (f File) IsDir() bool         { return f.isdir }
 
 func (fls Files) Table(width int) string {
 	// sort newest on top
@@ -36,8 +39,13 @@ func (fls Files) Table(width int) string {
 
 	data := [][]string{}
 	for _, file := range fls {
-		t := humanize.Time(file.modified)
-		b := humanize.Bytes(uint64(file.filesize))
+		var t, b string
+		t = humanize.Time(file.modified)
+		if file.isdir {
+			b = strings.Repeat("─", 3)
+		} else {
+			b = humanize.Bytes(uint64(file.filesize))
+		}
 		data = append(data, []string{
 			file.name,
 			file.path,
@@ -101,6 +109,7 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 				name:     name,
 				filesize: i.Size(),
 				modified: i.ModTime(),
+				isdir:    i.IsDir(),
 			})
 		} else {
 			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
@@ -139,6 +148,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 				path:     path,
 				modified: info.ModTime(),
 				filesize: info.Size(),
+				isdir:    info.IsDir(),
 			})
 		} else {
 			log.Debugf("ignoring file %s (%s)", name, info.ModTime())

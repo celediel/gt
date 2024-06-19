@@ -1,16 +1,16 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"time"
 
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/filter"
+	"git.burning.moe/celediel/gt/internal/tables"
 	"git.burning.moe/celediel/gt/internal/trash"
 
 	"github.com/adrg/xdg"
@@ -33,6 +33,7 @@ var (
 	workdir, ogdir cli.Path
 	recursive      bool
 	termwidth      int
+	termheight     int
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
@@ -48,11 +49,13 @@ var (
 			}
 		}
 
-		w, _, e := term.GetSize(int(os.Stdout.Fd()))
+		w, h, e := term.GetSize(int(os.Stdout.Fd()))
 		if e != nil {
 			w = 80
+			h = 24
 		}
 		termwidth = w
+		termheight = h
 
 		return
 	}
@@ -86,10 +89,23 @@ var (
 				return nil
 			}
 
-			fls.Show(termwidth)
-			if confirm(fmt.Sprintf("trash these %d files?", len(fls))) {
-				tfs := make([]string, 0, len(fls))
-				for _, file := range fls {
+			indices, err := tables.FilesTable(fls, termwidth, termheight, false, !f.Blank())
+			if err != nil {
+				return err
+			}
+
+			var selected files.Files
+			for _, i := range indices {
+				selected = append(selected, fls[i])
+			}
+
+			if len(selected) <= 0 {
+				return nil
+			}
+
+			if confirm(fmt.Sprintf("trash %d selected files?", len(selected))) {
+				tfs := make([]string, 0, len(selected))
+				for _, file := range selected {
 					log.Debugf("gonna trash %s", file.Filename())
 					tfs = append(tfs, file.Filename())
 				}
@@ -98,13 +114,48 @@ var (
 				if err != nil {
 					return err
 				}
-				log.Printf("trashed %d files", trashed)
+				fmt.Printf("trashed %d files\n", trashed)
 			} else {
-				log.Info("not gonna do it")
+				fmt.Printf("not doing anything\n")
 				return nil
 			}
 			return nil
 		},
+	}
+
+	action = func(ctx *cli.Context) error {
+		var (
+			fls      trash.Infos
+			indicies []int
+			err      error
+		)
+
+		if f == nil {
+			f, err = filter.New(o, b, a, g, p, ung, unp, ctx.Args().Slice()...)
+		}
+		if err != nil {
+			return err
+		}
+
+		fls, err = trash.FindFiles(trashDir, ogdir, f)
+		if err != nil {
+			return err
+		}
+
+		if len(fls) <= 0 {
+			log.Printf("no files to show")
+			return nil
+		}
+
+		indicies, err = tables.InfoTable(fls, termwidth, termheight, false, true)
+		if err != nil {
+			return err
+		}
+
+		for _, i := range indicies {
+			log.Printf("gonna do something with %s", fls[i].Name())
+		}
+		return nil
 	}
 
 	do_list = &cli.Command{
@@ -117,7 +168,7 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			files, err := trash.FindFiles(trashDir, ogdir, f)
+			fls, err := trash.FindFiles(trashDir, ogdir, f)
 
 			var msg string
 			if f.Blank() {
@@ -126,7 +177,7 @@ var (
 				msg = "no files to show"
 			}
 
-			if len(files) == 0 {
+			if len(fls) == 0 {
 				fmt.Println(msg)
 				return nil
 			} else if err != nil {
@@ -134,9 +185,9 @@ var (
 			}
 
 			// display them
-			files.Show(termwidth)
+			_, err = tables.InfoTable(fls, termwidth, termheight, true, false)
 
-			return nil
+			return err
 		},
 	}
 
@@ -150,24 +201,37 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			files, err := trash.FindFiles(trashDir, ogdir, f)
-			if len(files) == 0 {
+			fls, err := trash.FindFiles(trashDir, ogdir, f)
+			if len(fls) == 0 {
 				fmt.Println("no files to restore")
 				return nil
 			} else if err != nil {
 				return err
 			}
 
-			files.Show(termwidth)
-			if confirm(fmt.Sprintf("restore these %d files?", len(files))) {
+			indices, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank())
+			if err != nil {
+				return err
+			}
+
+			var selected trash.Infos
+			for _, i := range indices {
+				selected = append(selected, fls[i])
+			}
+
+			if len(selected) <= 0 {
+				return nil
+			}
+
+			if confirm(fmt.Sprintf("restore %d selected files?", len(selected))) {
 				log.Info("doing the thing")
-				restored, err := trash.Restore(files)
+				restored, err := trash.Restore(selected)
 				if err != nil {
 					return fmt.Errorf("restored %d files before error %s", restored, err)
 				}
-				log.Printf("restored %d files\n", restored)
+				fmt.Printf("restored %d files\n", restored)
 			} else {
-				log.Info("not gonna do it")
+				fmt.Printf("not doing anything\n")
 			}
 
 			return nil
@@ -181,25 +245,38 @@ var (
 		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
-			files, err := trash.FindFiles(trashDir, ogdir, f)
-			if len(files) == 0 {
+			fls, err := trash.FindFiles(trashDir, ogdir, f)
+			if len(fls) == 0 {
 				fmt.Println("no files to clean")
 				return nil
 			} else if err != nil {
 				return err
 			}
 
-			files.Show(termwidth)
-			if confirm(fmt.Sprintf("remove these %d files permanently from the trash?", len(files))) &&
-				confirm(fmt.Sprintf("really remove all %d of these files permanently from the trash forever??", len(files))) {
+			indices, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank())
+			if err != nil {
+				return err
+			}
+
+			var selected trash.Infos
+			for _, i := range indices {
+				selected = append(selected, fls[i])
+			}
+
+			if len(selected) <= 0 {
+				return nil
+			}
+
+			if confirm(fmt.Sprintf("remove %d selected files permanently from the trash?", len(selected))) &&
+				confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(selected))) {
 				log.Info("gonna remove some files forever")
-				removed, err := trash.Remove(files)
+				removed, err := trash.Remove(selected)
 				if err != nil {
 					return fmt.Errorf("removed %d files before error %s", removed, err)
 				}
-				log.Printf("removed %d files\n", removed)
+				fmt.Printf("removed %d files\n", removed)
 			} else {
-				log.Printf("left %d files alone", len(files))
+				fmt.Printf("not doing anything\n")
 			}
 			return nil
 		},
@@ -294,6 +371,7 @@ func main() {
 		Version:  appversion,
 		Before:   before_all,
 		After:    after,
+		Action:   action,
 		Commands: []*cli.Command{do_trash, do_list, do_restore, do_clean},
 		Flags:    global_flags,
 	}
@@ -303,16 +381,27 @@ func main() {
 	}
 }
 
-func confirm(s string) bool {
-	r := bufio.NewReader(os.Stdin)
-	fmt.Printf("%s [y/n]: ", s)
-	got, err := r.ReadString('\n')
+func confirm(prompt string) bool {
+	// TODO: handle errors better
+	// switch stdin into 'raw' mode
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	if len(got) < 2 {
+	defer func() {
+		if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
+			panic(err)
+		}
+	}()
+
+	fmt.Printf("%s [y/n]: ", prompt)
+
+	// read one byte from stdin
+	b := make([]byte, 1)
+	_, err = os.Stdin.Read(b)
+	if err != nil {
 		return false
-	} else {
-		return strings.ToLower(strings.TrimSpace(got))[0] == 'y'
 	}
+
+	return bytes.ToLower(b)[0] == 'y'
 }

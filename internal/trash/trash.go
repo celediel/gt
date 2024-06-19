@@ -3,19 +3,14 @@
 package trash
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"git.burning.moe/celediel/gt/internal/filter"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/charmbracelet/log"
-	"github.com/dustin/go-humanize"
 	"gitlab.com/tymonx/go-formatter/formatter"
 	"gopkg.in/ini.v1"
 )
@@ -49,41 +44,6 @@ func (i Info) Trashed() time.Time { return i.trashed }
 func (i Info) Filesize() int64    { return i.filesize }
 func (i Info) IsDir() bool        { return i.isdir }
 
-func (is Infos) Table(width int) string {
-
-	// sort newest on top
-	slices.SortStableFunc(is, SortByTrashedReverse)
-	out := [][]string{}
-	for _, file := range is {
-		var t, b string
-		t = humanize.Time(file.trashed)
-		if file.isdir {
-			b = strings.Repeat("─", 3)
-		} else {
-			b = humanize.Bytes(uint64(file.filesize))
-		}
-		out = append(out, []string{
-			file.name,
-			filepath.Dir(file.ogpath),
-			t,
-			b,
-		})
-	}
-
-	t := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("99"))).
-		Width(width).
-		Headers("filename", "original path", "deleted", "size").
-		Rows(out...)
-
-	return fmt.Sprint(t)
-}
-
-func (is Infos) Show(width int) {
-	fmt.Println(is.Table(width))
-}
-
 func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr error) {
 	outerr = filepath.WalkDir(trashdir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -103,6 +63,7 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 		}
 		if s := c.Section(trash_info_sec); s != nil {
 			basepath := s.Key(trash_info_path).String()
+
 			filename := filepath.Base(basepath)
 			// maybe this is kind of a HACK
 			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trash_info_ext, "", 1)
@@ -153,7 +114,6 @@ func Restore(files []Info) (restored int, err error) {
 		}
 		restored++
 	}
-	fmt.Printf("restored %d files\n", restored)
 	return restored, err
 }
 

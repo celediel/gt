@@ -2,19 +2,13 @@
 package files
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"time"
 
 	"git.burning.moe/celediel/gt/internal/filter"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/charmbracelet/log"
-	"github.com/dustin/go-humanize"
 )
 
 type File struct {
@@ -32,40 +26,6 @@ func (f File) Filename() string    { return filepath.Join(f.path, f.name) }
 func (f File) Modified() time.Time { return f.modified }
 func (f File) Filesize() int64     { return f.filesize }
 func (f File) IsDir() bool         { return f.isdir }
-
-func (fls Files) Table(width int) string {
-	// sort newest on top
-	slices.SortStableFunc(fls, SortByModifiedReverse)
-
-	data := [][]string{}
-	for _, file := range fls {
-		var t, b string
-		t = humanize.Time(file.modified)
-		if file.isdir {
-			b = strings.Repeat("─", 3)
-		} else {
-			b = humanize.Bytes(uint64(file.filesize))
-		}
-		data = append(data, []string{
-			file.name,
-			file.path,
-			t,
-			b,
-		})
-	}
-	t := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("99"))).
-		Width(width).
-		Headers("filename", "path", "modified", "size").
-		Rows(data...)
-
-	return fmt.Sprint(t)
-}
-
-func (fls Files) Show(width int) {
-	fmt.Println(fls.Table(width))
-}
 
 func Find(dir string, recursive bool, f *filter.Filter) (files Files, err error) {
 	if dir == "." || dir == "" {

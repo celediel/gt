@@ -69,7 +69,12 @@ func Find(dir string, recursive bool, f *filter.Filter) (files Files, err error)
 		}
 	}
 
-	log.Debugf("gonna find files in %s matching %s", dir, f)
+	var recursively string
+	if recursive {
+		recursively = " recursively"
+	}
+
+	log.Debugf("gonna find files%s in %s matching %s", recursively, dir, f)
 
 	if recursive {
 		files = append(files, walk_dir(dir, f)...)
@@ -86,13 +91,19 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 		if e != nil {
 			return err
 		}
+		name := d.Name()
 		info, _ := d.Info()
-		if f.Match(d.Name(), info.ModTime()) {
-			log.Debugf("found matching file: %s %s", p, info.ModTime())
+		if f.Match(name, info.ModTime()) {
+			log.Debugf("found matching file: %s %s", name, info.ModTime())
 			i, _ := os.Stat(p)
-			files = append(files, File{path: filepath.Dir(p), name: d.Name(), filesize: i.Size(), modified: i.ModTime()})
+			files = append(files, File{
+				path:     filepath.Dir(p),
+				name:     name,
+				filesize: i.Size(),
+				modified: i.ModTime(),
+			})
 		} else {
-			log.Debugf("ignoring file %s (%s)", p, info.ModTime())
+			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
 		}
 		return nil
 	})
@@ -122,7 +133,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 		path := filepath.Dir(filepath.Join(dir, name))
 
 		if f.Match(name, info.ModTime()) {
-			log.Debugf("found matching file: %s %s", path, info.ModTime())
+			log.Debugf("found matching file: %s %s", name, info.ModTime())
 			files = append(files, File{
 				name:     name,
 				path:     path,
@@ -130,7 +141,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 				filesize: info.Size(),
 			})
 		} else {
-			log.Debugf("ignoring file %s (%s)", path, info.ModTime())
+			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
 		}
 	}
 	return

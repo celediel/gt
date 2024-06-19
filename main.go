@@ -90,8 +90,8 @@ var (
 			if confirm(fmt.Sprintf("trash these %d files?", len(fls))) {
 				tfs := make([]string, 0, len(fls))
 				for _, file := range fls {
-					log.Debugf("gonna trash %s", file.Path())
-					tfs = append(tfs, file.Path())
+					log.Debugf("gonna trash %s", file.Filename())
+					tfs = append(tfs, file.Filename())
 				}
 
 				trashed, err := trash.TrashFiles(trashDir, tfs...)

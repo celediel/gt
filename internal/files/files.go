@@ -26,6 +26,7 @@ type Files []File
 
 func (f File) Name() string        { return f.name }
 func (f File) Path() string        { return f.path }
+func (f File) Filename() string    { return filepath.Join(f.path, f.name) }
 func (f File) Modified() time.Time { return f.modified }
 func (f File) Filesize() int64     { return f.filesize }
 

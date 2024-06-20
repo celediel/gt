@@ -81,7 +81,7 @@ var (
 	do_trash = &cli.Command{
 		Name:    "trash",
 		Aliases: []string{"tr"},
-		Usage:   "trash a file or files",
+		Usage:   "Trash a file or files",
 		Flags:   slices.Concat(trash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
@@ -136,7 +136,7 @@ var (
 	do_list = &cli.Command{
 		Name:    "list",
 		Aliases: []string{"ls"},
-		Usage:   "list trashed files",
+		Usage:   "List trashed files",
 		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
@@ -169,7 +169,7 @@ var (
 	do_restore = &cli.Command{
 		Name:    "restore",
 		Aliases: []string{"re"},
-		Usage:   "restore a trashed file or files",
+		Usage:   "Restore a trashed file or files",
 		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
@@ -205,7 +205,7 @@ var (
 	do_clean = &cli.Command{
 		Name:    "clean",
 		Aliases: []string{"cl"},
-		Usage:   "clean files from trash",
+		Usage:   "Clean files from trash",
 		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
 		Before:  before_commands,
 		Action: func(ctx *cli.Context) error {
@@ -245,7 +245,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:               "confirm",
-			Usage:              "ask for confirmation before executing any action",
+			Usage:              "Ask for confirmation before executing any action",
 			Value:              false,
 			Aliases:            []string{"c"},
 			DisableDefaultText: true,
@@ -256,61 +256,61 @@ var (
 	filter_flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "match",
-			Usage:       "operate on files matching regex `PATTERN`",
+			Usage:       "Operate on files matching regex `PATTERN`",
 			Aliases:     []string{"m"},
 			Destination: &p,
 		},
 		&cli.StringFlag{
 			Name:        "glob",
-			Usage:       "operate on files matching `GLOB`",
+			Usage:       "Operate on files matching `GLOB`",
 			Aliases:     []string{"g"},
 			Destination: &g,
 		},
 		&cli.StringFlag{
 			Name:        "not-match",
-			Usage:       "operate on files not matching regex `PATTERN`",
+			Usage:       "Operate on files not matching regex `PATTERN`",
 			Aliases:     []string{"M"},
 			Destination: &unp,
 		},
 		&cli.StringFlag{
 			Name:        "not-glob",
-			Usage:       "operate on files not matching `GLOB`",
+			Usage:       "Operate on files not matching `GLOB`",
 			Aliases:     []string{"G"},
 			Destination: &ung,
 		},
 		&cli.StringFlag{
 			Name:        "on",
-			Usage:       "operate on files modified on `DATE`",
+			Usage:       "Operate on files modified on `DATE`",
 			Aliases:     []string{"o"},
 			Destination: &o,
 		},
 		&cli.StringFlag{
 			Name:        "after",
-			Usage:       "operate on files modified before `DATE`",
+			Usage:       "Operate on files modified before `DATE`",
 			Aliases:     []string{"a"},
 			Destination: &a,
 		},
 		&cli.StringFlag{
 			Name:        "before",
-			Usage:       "operate on files modified after `DATE`",
+			Usage:       "Operate on files modified after `DATE`",
 			Aliases:     []string{"b"},
 			Destination: &b,
 		},
 		&cli.BoolFlag{
 			Name:        "files-only",
-			Usage:       "operate on files only",
+			Usage:       "Operate on files only",
 			Aliases:     []string{"f"},
 			Destination: &fo,
 		},
 		&cli.BoolFlag{
 			Name:        "dirs-only",
-			Usage:       "operate on directories only",
+			Usage:       "Operate on directories only",
 			Aliases:     []string{"d"},
 			Destination: &do,
 		},
 		&cli.BoolFlag{
 			Name:        "ignore-hidden",
-			Usage:       "operate on unhidden files only",
+			Usage:       "Operate on unhidden files only",
 			Aliases:     []string{"i"},
 			Destination: &ih,
 		},
@@ -319,7 +319,7 @@ var (
 	trash_flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:               "recursive",
-			Usage:              "trash files recursively",
+			Usage:              "Trash files recursively",
 			Aliases:            []string{"r"},
 			Destination:        &recursive,
 			Value:              false,
@@ -327,7 +327,7 @@ var (
 		},
 		&cli.PathFlag{
 			Name:        "work-dir",
-			Usage:       "trash files in this `DIRECTORY`",
+			Usage:       "Trash files in this `DIRECTORY`",
 			Aliases:     []string{"w"},
 			Destination: &workdir,
 		},
@@ -336,7 +336,7 @@ var (
 	alreadyintrash_flags = []cli.Flag{
 		&cli.PathFlag{
 			Name:        "original-path",
-			Usage:       "operate on files trashed from this `DIRECTORY`",
+			Usage:       "Operate on files trashed from this `DIRECTORY`",
 			Aliases:     []string{"O"},
 			Destination: &ogdir,
 		},

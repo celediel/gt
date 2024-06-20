@@ -55,6 +55,10 @@ func Find(dir string, recursive bool, f *filter.Filter) (files Files, err error)
 
 func walk_dir(dir string, f *filter.Filter) (files Files) {
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if dir == path {
+			return nil
+		}
+
 		p, e := filepath.Abs(path)
 		if e != nil {
 			return err

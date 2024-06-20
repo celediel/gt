@@ -27,7 +27,20 @@ func (f *Filter) Glob() string        { return f.glob }
 func (f *Filter) Pattern() string     { return f.pattern }
 func (f *Filter) FileNames() []string { return f.filenames }
 
+func (f *Filter) AddFileName(filename string) {
+	filename = filepath.Clean(filename)
+	f.filenames = append(f.filenames, filename)
+}
+
+func (f *Filter) AddFileNames(filenames ...string) {
+	for _, filename := range filenames {
+		f.AddFileName(filename)
+	}
+}
+
 func (f *Filter) Match(filename string, modified time.Time) bool {
+	// this might be unnessary but w/e
+	filename = filepath.Clean(filename)
 	// on or before/after, not both
 	if !f.on.IsZero() {
 		if !same_day(f.on, modified) {
@@ -127,10 +140,11 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, names ...st
 	)
 
 	f := &Filter{
-		glob:      glob,
-		unglob:    unglob,
-		filenames: append([]string{}, names...),
+		glob:   glob,
+		unglob: unglob,
 	}
+
+	f.AddFileNames(names...)
 
 	if on != "" {
 		o, err := anytime.Parse(on, now)

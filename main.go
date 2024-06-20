@@ -10,6 +10,7 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/filter"
+	"git.burning.moe/celediel/gt/internal/modes"
 	"git.burning.moe/celediel/gt/internal/tables"
 	"git.burning.moe/celediel/gt/internal/trash"
 
@@ -23,6 +24,8 @@ const (
 	appname    string = "gt"
 	appdesc    string = "xdg trash cli"
 	appversion string = "v0.0.1"
+	yes        rune   = 'y'
+	no         rune   = 'n'
 )
 
 var (
@@ -103,59 +106,29 @@ var (
 				return nil
 			}
 
-			if confirm(fmt.Sprintf("trash %d selected files?", len(selected))) {
-				tfs := make([]string, 0, len(selected))
-				for _, file := range selected {
-					log.Debugf("gonna trash %s", file.Filename())
-					tfs = append(tfs, file.Filename())
-				}
-
-				trashed, err := trash.TrashFiles(trashDir, tfs...)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("trashed %d files\n", trashed)
-			} else {
-				fmt.Printf("not doing anything\n")
-				return nil
-			}
-			return nil
+			return confirm_trash(selected)
 		},
 	}
 
+	// action launches interactive mode if run without args, or trashes files as args
 	action = func(ctx *cli.Context) error {
 		var (
-			fls      trash.Infos
-			indicies []int
-			err      error
+			err error
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp)
 		}
 		if err != nil {
 			return err
 		}
 
-		fls, err = trash.FindFiles(trashDir, ogdir, f)
-		if err != nil {
-			return err
+		if len(ctx.Args().Slice()) != 0 {
+			f.AddFileNames(ctx.Args().Slice()...)
+			return do_trash.Action(ctx)
+		} else {
+			return interactive_mode()
 		}
-
-		if len(fls) <= 0 {
-			log.Printf("no files to show")
-			return nil
-		}
-
-		indicies, err = tables.InfoTable(fls, termwidth, termheight, false, true)
-		if err != nil {
-			return err
-		}
-
-		for _, i := range indicies {
-			log.Printf("gonna do something with %s", fls[i].Name())
-		}
-		return nil
 	}
 
 	do_list = &cli.Command{
@@ -185,7 +158,7 @@ var (
 			}
 
 			// display them
-			_, err = tables.InfoTable(fls, termwidth, termheight, true, false)
+			_, _, err = tables.InfoTable(fls, termwidth, termheight, true, false, modes.Listing)
 
 			return err
 		},
@@ -209,7 +182,7 @@ var (
 				return err
 			}
 
-			indices, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank())
+			indices, _, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank(), modes.Restoring)
 			if err != nil {
 				return err
 			}
@@ -223,18 +196,7 @@ var (
 				return nil
 			}
 
-			if confirm(fmt.Sprintf("restore %d selected files?", len(selected))) {
-				log.Info("doing the thing")
-				restored, err := trash.Restore(selected)
-				if err != nil {
-					return fmt.Errorf("restored %d files before error %s", restored, err)
-				}
-				fmt.Printf("restored %d files\n", restored)
-			} else {
-				fmt.Printf("not doing anything\n")
-			}
-
-			return nil
+			return confirm_restore(selected)
 		},
 	}
 
@@ -253,7 +215,7 @@ var (
 				return err
 			}
 
-			indices, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank())
+			indices, _, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank(), modes.Cleaning)
 			if err != nil {
 				return err
 			}
@@ -267,18 +229,7 @@ var (
 				return nil
 			}
 
-			if confirm(fmt.Sprintf("remove %d selected files permanently from the trash?", len(selected))) &&
-				confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(selected))) {
-				log.Info("gonna remove some files forever")
-				removed, err := trash.Remove(selected)
-				if err != nil {
-					return fmt.Errorf("removed %d files before error %s", removed, err)
-				}
-				fmt.Printf("removed %d files\n", removed)
-			} else {
-				fmt.Printf("not doing anything\n")
-			}
-			return nil
+			return confirm_clean(selected)
 		},
 	}
 
@@ -381,6 +332,106 @@ func main() {
 	}
 }
 
+func interactive_mode() error {
+	var (
+		fls      trash.Infos
+		indicies []int
+		mode     modes.Mode
+		err      error
+	)
+
+	fls, err = trash.FindFiles(trashDir, ogdir, f)
+	if err != nil {
+		return err
+	}
+
+	if len(fls) <= 0 {
+		log.Printf("no files to show")
+		return nil
+	}
+
+	indicies, mode, err = tables.InfoTable(fls, termwidth, termheight, false, false, modes.Interactive)
+	if err != nil {
+		return err
+	}
+
+	var selected trash.Infos
+	for _, i := range indicies {
+		selected = append(selected, fls[i])
+	}
+
+	switch mode {
+	case modes.Cleaning:
+		for _, file := range selected {
+			log.Debugf("gonna clean %s", file.Name())
+		}
+		if err := confirm_clean(selected); err != nil {
+			return err
+		}
+	case modes.Restoring:
+		for _, file := range selected {
+			log.Debugf("gonna restore %s", file.Name())
+		}
+		if err := confirm_restore(selected); err != nil {
+			return err
+		}
+	case modes.Interactive:
+		return nil
+	default:
+		return fmt.Errorf("got bad mode %s", mode)
+	}
+	return nil
+}
+
+func confirm_restore(is trash.Infos) error {
+	if confirm(fmt.Sprintf("restore %d selected files?", len(is))) {
+		log.Info("doing the thing")
+		restored, err := trash.Restore(is)
+		if err != nil {
+			return fmt.Errorf("restored %d files before error %s", restored, err)
+		}
+		fmt.Printf("restored %d files\n", restored)
+	} else {
+		fmt.Printf("not doing anything\n")
+	}
+	return nil
+}
+
+func confirm_clean(is trash.Infos) error {
+	if confirm(fmt.Sprintf("remove %d selected files permanently from the trash?", len(is))) &&
+		confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is))) {
+		log.Info("gonna remove some files forever")
+		removed, err := trash.Remove(is)
+		if err != nil {
+			return fmt.Errorf("removed %d files before error %s", removed, err)
+		}
+		fmt.Printf("removed %d files\n", removed)
+	} else {
+		fmt.Printf("not doing anything\n")
+	}
+	return nil
+}
+
+func confirm_trash(fs files.Files) error {
+	if confirm(fmt.Sprintf("trash %d selected files?", len(fs))) {
+		tfs := make([]string, 0, len(fs))
+		for _, file := range fs {
+			log.Debugf("gonna trash %s", file.Filename())
+			tfs = append(tfs, file.Filename())
+		}
+
+		trashed, err := trash.TrashFiles(trashDir, tfs...)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("trashed %d files\n", trashed)
+	} else {
+		fmt.Printf("not doing anything\n")
+		return nil
+	}
+	return nil
+}
+
 func confirm(prompt string) bool {
 	// TODO: handle errors better
 	// switch stdin into 'raw' mode
@@ -394,7 +445,7 @@ func confirm(prompt string) bool {
 		}
 	}()
 
-	fmt.Printf("%s [y/n]: ", prompt)
+	fmt.Printf("%s [%s/%s]: ", prompt, string(yes), string(no))
 
 	// read one byte from stdin
 	b := make([]byte, 1)

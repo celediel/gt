@@ -9,6 +9,7 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/dirs"
 	"git.burning.moe/celediel/gt/internal/files"
+	"git.burning.moe/celediel/gt/internal/modes"
 	"git.burning.moe/celediel/gt/internal/trash"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
@@ -22,7 +23,7 @@ const (
 	check   string = "☑"
 	space   string = " "
 	woffset int    = 13 // why this number, I don't know
-	hoffset int    = 5
+	hoffset int    = 6
 
 	// TODO: make these configurable or something
 	borderbg    string = "5"
@@ -53,11 +54,12 @@ type model struct {
 	selected   []int
 	readonly   bool
 	termheight int
+	mode       modes.Mode
 }
 
 // TODO: reconcile trash.Info and files.File into an interface so I can shorten this up
 
-func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool) model {
+func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool, mode modes.Mode) model {
 	var (
 		fwidth  int = int(math.Round(float64(width-woffset) * 0.4))
 		owidth  int = int(math.Round(float64(width-woffset) * 0.2))
@@ -70,6 +72,7 @@ func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool
 			keys:       defaultKeyMap(),
 			readonly:   readonly,
 			termheight: height,
+			mode:       mode,
 		}
 	)
 	slices.SortStableFunc(is, trash.SortByTrashedReverse)
@@ -128,6 +131,7 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 		m = model{
 			keys:     defaultKeyMap(),
 			readonly: readonly,
+			mode:     modes.Trashing,
 		}
 	)
 
@@ -181,6 +185,8 @@ type keyMap struct {
 	todo key.Binding
 	nada key.Binding
 	invr key.Binding
+	rstr key.Binding
+	clen key.Binding
 	quit key.Binding
 }
 
@@ -206,6 +212,14 @@ func defaultKeyMap() keyMap {
 			key.WithKeys("i", "ctrl+i"),
 			key.WithHelp("i", "invert selection"),
 		),
+		clen: key.NewBinding(
+			key.WithKeys("c"),
+			key.WithHelp("c", "clean selection"),
+		),
+		rstr: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "restore selection"),
+		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
@@ -229,7 +243,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.mark):
 			m.toggle_item(m.table.Cursor())
 		case key.Matches(msg, m.keys.doit):
-			if !m.readonly {
+			if !m.readonly && m.mode != modes.Interactive {
 				return m, tea.Quit
 			}
 		case key.Matches(msg, m.keys.nada):
@@ -238,8 +252,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.select_all()
 		case key.Matches(msg, m.keys.invr):
 			m.invert_selection()
+		case key.Matches(msg, m.keys.clen):
+			m.mode = modes.Cleaning
+			return m.quit(false)
+		case key.Matches(msg, m.keys.rstr):
+			m.mode = modes.Restoring
+			return m.quit(false)
 		case key.Matches(msg, m.keys.quit):
-			return m.quit()
+			return m.quit(true)
 		}
 	}
 
@@ -262,6 +282,10 @@ func (m model) View() (out string) {
 		panels = append(panels, m.footer())
 	}
 
+	if m.mode != modes.Listing {
+		panels = append([]string{m.header()}, panels...)
+	}
+
 	out = lipgloss.JoinVertical(lipgloss.Top, panels...)
 	return out + n
 }
@@ -276,26 +300,51 @@ func (m model) showHelp() string {
 		fmt.Sprintf("%s %s", darktext.Render(m.keys.quit.Help().Key), darkertext.Render(m.keys.quit.Help().Desc)),
 	}
 	if !m.readonly {
+		if m.mode != modes.Interactive {
+			keys = append([]string{
+				fmt.Sprintf("%s %s", darktext.Render(m.keys.doit.Help().Key), darkertext.Render(m.keys.doit.Help().Desc)),
+			}, keys...)
+		}
 		keys = append([]string{
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.mark.Help().Key), darkertext.Render(m.keys.mark.Help().Desc)),
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.doit.Help().Key), darkertext.Render(m.keys.doit.Help().Desc)),
 		}, keys...)
 	}
 	return strings.Join(keys, darkesttext.Render(" • "))
+}
+
+func (m model) header() string {
+	var (
+		mode string
+		keys []string = []string{
+			fmt.Sprintf("%s %s", darktext.Render(m.keys.rstr.Help().Key), darkertext.Render(m.keys.rstr.Help().Desc)),
+			fmt.Sprintf("%s %s", darktext.Render(m.keys.clen.Help().Key), darkertext.Render(m.keys.clen.Help().Desc)),
+		}
+	)
+
+	switch m.mode {
+	case modes.Interactive:
+		mode = strings.Join(keys, darkesttext.Render(" • "))
+	default:
+		mode = m.mode.String()
+	}
+
+	return fmt.Sprintf("%s %s %d files selected", mode, darkesttext.Render("•"), len(m.selected))
 }
 
 func (m model) footer() string {
 	return regulartext.Render(m.showHelp())
 }
 
-func (m model) quit() (model, tea.Cmd) {
-	m.unselect_all()
+func (m model) quit(unselect_all bool) (model, tea.Cmd) {
+	if unselect_all {
+		m.unselect_all()
+	}
 	m.table.SetStyles(makeUnselectedStyle())
 	return m, tea.Quit
 }
 
 // update_row updates row of `index` with `row`
-func (m *model) update_row(index int, selected bool /* , row table.Row */) {
+func (m *model) update_row(index int, selected bool) {
 	rows := m.table.Rows()
 	row := rows[index]
 	rows[index] = table.Row{
@@ -307,7 +356,6 @@ func (m *model) update_row(index int, selected bool /* , row table.Row */) {
 	}
 
 	m.table.SetRows(rows)
-
 }
 
 // toggle_item toggles an item's selected state, and returns the state
@@ -361,15 +409,15 @@ func (m *model) invert_selection() {
 	}
 }
 
-func InfoTable(is trash.Infos, width, height int, readonly, preselected bool) ([]int, error) {
-	if endmodel, err := tea.NewProgram(newInfosModel(is, width, height, readonly, preselected)).Run(); err != nil {
-		return []int{}, err
+func InfoTable(is trash.Infos, width, height int, readonly, preselected bool, mode modes.Mode) ([]int, modes.Mode, error) {
+	if endmodel, err := tea.NewProgram(newInfosModel(is, width, height, readonly, preselected, mode)).Run(); err != nil {
+		return []int{}, 0, err
 	} else {
 		m, ok := endmodel.(model)
 		if ok {
-			return m.selected, nil
+			return m.selected, m.mode, nil
 		} else {
-			return []int{}, fmt.Errorf("model isn't the right type??")
+			return []int{}, 0, fmt.Errorf("model isn't the right type??")
 		}
 	}
 }

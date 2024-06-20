@@ -358,6 +358,22 @@ func (m *model) update_row(index int, selected bool) {
 	m.table.SetRows(rows)
 }
 
+func (m *model) update_rows(selected bool) {
+	var newrows []table.Row
+
+	for _, row := range m.table.Rows() {
+		r := table.Row{
+			row[0],
+			row[1],
+			row[2],
+			row[3],
+			getCheck(selected),
+		}
+		newrows = append(newrows, r)
+	}
+	m.table.SetRows(newrows)
+}
+
 // toggle_item toggles an item's selected state, and returns the state
 func (m *model) toggle_item(index int) (selected bool) {
 	if m.readonly {
@@ -386,10 +402,10 @@ func (m *model) select_all() {
 	}
 
 	m.selected = []int{}
-	for i := range m.table.Rows() {
+	for i := range len(m.table.Rows()) {
 		m.selected = append(m.selected, i)
-		m.update_row(i, true)
 	}
+	m.update_rows(true)
 }
 
 func (m *model) unselect_all() {
@@ -398,15 +414,35 @@ func (m *model) unselect_all() {
 	}
 
 	m.selected = []int{}
-	for i := range m.table.Rows() {
-		m.update_row(i, false)
-	}
+	m.update_rows(false)
 }
 
 func (m *model) invert_selection() {
-	for i := range m.table.Rows() {
-		m.toggle_item(i)
+	var newrows []table.Row
+
+	for index, row := range m.table.Rows() {
+		if slices.Contains(m.selected, index) {
+			m.selected = slices.DeleteFunc(m.selected, func(other int) bool { return index == other })
+			newrows = append(newrows, table.Row{
+				row[0],
+				row[1],
+				row[2],
+				row[3],
+				getCheck(false),
+			})
+		} else {
+			m.selected = append(m.selected, index)
+			newrows = append(newrows, table.Row{
+				row[0],
+				row[1],
+				row[2],
+				row[3],
+				getCheck(true),
+			})
+		}
 	}
+
+	m.table.SetRows(newrows)
 }
 
 func InfoTable(is trash.Infos, width, height int, readonly, preselected bool, mode modes.Mode) ([]int, modes.Mode, error) {

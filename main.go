@@ -418,7 +418,7 @@ func interactive_mode() error {
 }
 
 func confirm_restore(is trash.Infos) error {
-	if confirm(fmt.Sprintf("restore %d selected files?", len(is))) {
+	if !askconfirm || confirm(fmt.Sprintf("restore %d selected files?", len(is))) {
 		log.Info("doing the thing")
 		restored, err := trash.Restore(is)
 		if err != nil {
@@ -433,7 +433,7 @@ func confirm_restore(is trash.Infos) error {
 
 func confirm_clean(is trash.Infos) error {
 	if confirm(fmt.Sprintf("remove %d selected files permanently from the trash?", len(is))) &&
-		confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is))) {
+		(!askconfirm || confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is)))) {
 		log.Info("gonna remove some files forever")
 		removed, err := trash.Remove(is)
 		if err != nil {
@@ -447,7 +447,7 @@ func confirm_clean(is trash.Infos) error {
 }
 
 func confirm_trash(fs files.Files) error {
-	if confirm(fmt.Sprintf("trash %d selected files?", len(fs))) {
+	if !askconfirm || confirm(fmt.Sprintf("trash %d selected files?", len(fs))) {
 		tfs := make([]string, 0, len(fs))
 		for _, file := range fs {
 			log.Debugf("gonna trash %s", file.Filename())
@@ -467,9 +467,6 @@ func confirm_trash(fs files.Files) error {
 }
 
 func confirm(prompt string) bool {
-	if !askconfirm {
-		return true
-	}
 	// TODO: handle errors better
 	// switch stdin into 'raw' mode
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))

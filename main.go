@@ -238,14 +238,14 @@ var (
 	global_flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "log",
-			Usage:       "Log level",
+			Usage:       "log level",
 			Value:       "warn",
 			Aliases:     []string{"l"},
 			Destination: &loglvl,
 		},
 		&cli.BoolFlag{
 			Name:               "confirm",
-			Usage:              "Ask for confirmation before executing any action",
+			Usage:              "ask for confirmation before executing any action",
 			Value:              false,
 			Aliases:            []string{"c"},
 			DisableDefaultText: true,
@@ -256,70 +256,73 @@ var (
 	filter_flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "match",
-			Usage:       "Operate on files matching regex `PATTERN`",
+			Usage:       "operate on files matching regex `PATTERN`",
 			Aliases:     []string{"m"},
 			Destination: &p,
 		},
 		&cli.StringFlag{
 			Name:        "glob",
-			Usage:       "Operate on files matching `GLOB`",
+			Usage:       "operate on files matching `GLOB`",
 			Aliases:     []string{"g"},
 			Destination: &g,
 		},
 		&cli.StringFlag{
 			Name:        "not-match",
-			Usage:       "Operate on files not matching regex `PATTERN`",
+			Usage:       "operate on files not matching regex `PATTERN`",
 			Aliases:     []string{"M"},
 			Destination: &unp,
 		},
 		&cli.StringFlag{
 			Name:        "not-glob",
-			Usage:       "Operate on files not matching `GLOB`",
+			Usage:       "operate on files not matching `GLOB`",
 			Aliases:     []string{"G"},
 			Destination: &ung,
 		},
 		&cli.StringFlag{
 			Name:        "on",
-			Usage:       "Operate on files modified on `DATE`",
+			Usage:       "operate on files modified on `DATE`",
 			Aliases:     []string{"o"},
 			Destination: &o,
 		},
 		&cli.StringFlag{
 			Name:        "after",
-			Usage:       "Operate on files modified before `DATE`",
+			Usage:       "operate on files modified before `DATE`",
 			Aliases:     []string{"a"},
 			Destination: &a,
 		},
 		&cli.StringFlag{
 			Name:        "before",
-			Usage:       "Operate on files modified after `DATE`",
+			Usage:       "operate on files modified after `DATE`",
 			Aliases:     []string{"b"},
 			Destination: &b,
 		},
 		&cli.BoolFlag{
-			Name:        "files-only",
-			Usage:       "Operate on files only",
-			Aliases:     []string{"f"},
-			Destination: &fo,
+			Name:               "files-only",
+			Usage:              "operate on files only",
+			Aliases:            []string{"f"},
+			DisableDefaultText: true,
+			Destination:        &fo,
 		},
 		&cli.BoolFlag{
-			Name:        "dirs-only",
-			Usage:       "Operate on directories only",
-			Aliases:     []string{"d"},
-			Destination: &do,
+			Name:               "dirs-only",
+			Usage:              "operate on directories only",
+			Aliases:            []string{"d"},
+			DisableDefaultText: true,
+			Destination:        &do,
 		},
 		&cli.BoolFlag{
-			Name:        "ignore-hidden",
-			Usage:       "Operate on unhidden files only",
-			Aliases:     []string{"i"},
-			Destination: &ih,
+			Name:               "ignore-hidden",
+			Usage:              "operate on unhidden files only",
+			Aliases:            []string{"i"},
+			DisableDefaultText: true,
+			Destination:        &ih,
 		},
 	}
 
 	trash_flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:               "recursive",
-			Usage:              "Trash files recursively",
+			Usage:              "operate on files recursively",
 			Aliases:            []string{"r"},
 			Destination:        &recursive,
 			Value:              false,
@@ -327,7 +330,7 @@ var (
 		},
 		&cli.PathFlag{
 			Name:        "work-dir",
-			Usage:       "Trash files in this `DIRECTORY`",
+			Usage:       "operate on files in this `DIRECTORY`",
 			Aliases:     []string{"w"},
 			Destination: &workdir,
 		},
@@ -336,7 +339,7 @@ var (
 	alreadyintrash_flags = []cli.Flag{
 		&cli.PathFlag{
 			Name:        "original-path",
-			Usage:       "Operate on files trashed from this `DIRECTORY`",
+			Usage:       "operate on files trashed from this `DIRECTORY`",
 			Aliases:     []string{"O"},
 			Destination: &ogdir,
 		},

@@ -33,6 +33,7 @@ var (
 	f              *filter.Filter
 	o, b, a, g, p  string
 	ung, unp       string
+	fo, do, ih     bool
 	workdir, ogdir cli.Path
 	recursive      bool
 	termwidth      int
@@ -66,7 +67,7 @@ var (
 	before_commands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -117,7 +118,7 @@ var (
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
 		}
 		if err != nil {
 			return err
@@ -285,6 +286,24 @@ var (
 			Usage:       "operate on files modified after `DATE`",
 			Aliases:     []string{"b"},
 			Destination: &b,
+		},
+		&cli.BoolFlag{
+			Name:        "files-only",
+			Usage:       "operate on files only",
+			Aliases:     []string{"f"},
+			Destination: &fo,
+		},
+		&cli.BoolFlag{
+			Name:        "dirs-only",
+			Usage:       "operate on directories only",
+			Aliases:     []string{"d"},
+			Destination: &do,
+		},
+		&cli.BoolFlag{
+			Name:        "ignore-hidden",
+			Usage:       "operate on unhidden files only",
+			Aliases:     []string{"i"},
+			Destination: &ih,
 		},
 	}
 

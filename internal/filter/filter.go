@@ -6,18 +6,21 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ijt/go-anytime"
 )
 
 type Filter struct {
-	on, before, after time.Time
-	glob, pattern     string
-	unglob, unpattern string
-	filenames         []string
-	matcher           *regexp.Regexp
-	unmatcher         *regexp.Regexp
+	on, before, after   time.Time
+	glob, pattern       string
+	unglob, unpattern   string
+	filenames           []string
+	dirsonly, filesonly bool
+	ignorehidden        bool
+	matcher             *regexp.Regexp
+	unmatcher           *regexp.Regexp
 }
 
 func (f *Filter) On() time.Time       { return f.on }
@@ -26,6 +29,9 @@ func (f *Filter) Before() time.Time   { return f.before }
 func (f *Filter) Glob() string        { return f.glob }
 func (f *Filter) Pattern() string     { return f.pattern }
 func (f *Filter) FileNames() []string { return f.filenames }
+func (f *Filter) FilesOnly() bool     { return f.filesonly }
+func (f *Filter) DirsOnly() bool      { return f.dirsonly }
+func (f *Filter) IgnoreHidden() bool  { return f.ignorehidden }
 
 func (f *Filter) AddFileName(filename string) {
 	filename = filepath.Clean(filename)
@@ -38,7 +44,7 @@ func (f *Filter) AddFileNames(filenames ...string) {
 	}
 }
 
-func (f *Filter) Match(filename string, modified time.Time) bool {
+func (f *Filter) Match(filename string, modified time.Time, isdir bool) bool {
 	// this might be unnessary but w/e
 	filename = filepath.Clean(filename)
 	// on or before/after, not both
@@ -73,6 +79,15 @@ func (f *Filter) Match(filename string, modified time.Time) bool {
 	if len(f.filenames) > 0 && !slices.Contains(f.filenames, filename) {
 		return false
 	}
+	if f.filesonly && isdir {
+		return false
+	}
+	if f.dirsonly && !isdir {
+		return false
+	}
+	if f.ignorehidden && strings.HasPrefix(filename, ".") {
+		return false
+	}
 	// okay it was good
 	return true
 }
@@ -100,7 +115,10 @@ func (f *Filter) Blank() bool {
 		f.after.Equal(t) &&
 		f.before.Equal(t) &&
 		f.on.Equal(t) &&
-		len(f.filenames) == 0
+		len(f.filenames) == 0 &&
+		!f.ignorehidden &&
+		!f.filesonly &&
+		!f.dirsonly
 }
 
 func (f *Filter) String() string {
@@ -111,11 +129,14 @@ func (f *Filter) String() string {
 	if f.unmatcher != nil {
 		unm = f.unmatcher.String()
 	}
-	return fmt.Sprintf("on:'%s' before:'%s' after:'%s' glob:'%s' regex:'%s' unglob:'%s' unregex:'%s' filenames:'%v'",
+	return fmt.Sprintf("on:'%s' before:'%s' after:'%s' glob:'%s' regex:'%s' unglob:'%s' "+
+		"unregex:'%s' filenames:'%v' filesonly:'%t' dirsonly:'%t' ignorehidden:'%t'",
 		f.on, f.before, f.after,
 		f.glob, m,
 		f.unglob, unm,
 		f.filenames,
+		f.filesonly, f.dirsonly,
+		f.ignorehidden,
 	)
 }
 
@@ -133,15 +154,18 @@ func (f *Filter) has_unregex() bool {
 	return f.unmatcher.String() != ""
 }
 
-func New(on, before, after, glob, pattern, unglob, unpattern string, names ...string) (*Filter, error) {
+func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, ignorehidden bool, names ...string) (*Filter, error) {
 	var (
 		err error
 		now = time.Now()
 	)
 
 	f := &Filter{
-		glob:   glob,
-		unglob: unglob,
+		glob:         glob,
+		unglob:       unglob,
+		filesonly:    filesonly,
+		dirsonly:     dirsonly,
+		ignorehidden: ignorehidden,
 	}
 
 	f.AddFileNames(names...)

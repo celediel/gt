@@ -61,7 +61,7 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 		}
 		name := d.Name()
 		info, _ := d.Info()
-		if f.Match(name, info.ModTime()) {
+		if f.Match(name, info.ModTime(), info.IsDir()) {
 			log.Debugf("found matching file: %s %s", name, info.ModTime())
 			i, _ := os.Stat(p)
 			files = append(files, File{
@@ -101,7 +101,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 
 		path := filepath.Dir(filepath.Join(dir, name))
 
-		if f.Match(name, info.ModTime()) {
+		if f.Match(name, info.ModTime(), info.IsDir()) {
 			log.Debugf("found matching file: %s %s", name, info.ModTime())
 			files = append(files, File{
 				name:     name,

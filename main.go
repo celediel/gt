@@ -34,6 +34,7 @@ var (
 	o, b, a, g, p  string
 	ung, unp       string
 	fo, do, ih     bool
+	askconfirm     bool
 	workdir, ogdir cli.Path
 	recursive      bool
 	termwidth      int
@@ -241,6 +242,14 @@ var (
 			Value:       "warn",
 			Aliases:     []string{"l"},
 			Destination: &loglvl,
+		},
+		&cli.BoolFlag{
+			Name:               "confirm",
+			Usage:              "ask for confirmation before executing any action",
+			Value:              false,
+			Aliases:            []string{"c"},
+			DisableDefaultText: true,
+			Destination:        &askconfirm,
 		},
 	}
 
@@ -452,6 +461,9 @@ func confirm_trash(fs files.Files) error {
 }
 
 func confirm(prompt string) bool {
+	if !askconfirm {
+		return true
+	}
 	// TODO: handle errors better
 	// switch stdin into 'raw' mode
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))

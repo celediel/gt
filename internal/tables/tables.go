@@ -204,23 +204,23 @@ func defaultKeyMap() keyMap {
 		),
 		todo: key.NewBinding(
 			key.WithKeys("a", "ctrl+a"),
-			key.WithHelp("a", "select all"),
+			key.WithHelp("a", "all"),
 		),
 		nada: key.NewBinding(
 			key.WithKeys("n", "ctrl+n"),
-			key.WithHelp("n", "select none"),
+			key.WithHelp("n", "none"),
 		),
 		invr: key.NewBinding(
 			key.WithKeys("i", "ctrl+i"),
-			key.WithHelp("i", "invert selection"),
+			key.WithHelp("i", "invert"),
 		),
 		clen: key.NewBinding(
 			key.WithKeys("c"),
-			key.WithHelp("c", "clean selection"),
+			key.WithHelp("c", "clean"),
 		),
 		rstr: key.NewBinding(
 			key.WithKeys("r"),
-			key.WithHelp("r", "restore selection"),
+			key.WithHelp("r", "restore"),
 		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
@@ -317,20 +317,28 @@ func (m model) showHelp() string {
 func (m model) header() string {
 	var (
 		mode string
-		keys []string = []string{
+		keys = []string{
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.rstr.Help().Key), darkertext.Render(m.keys.rstr.Help().Desc)),
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.clen.Help().Key), darkertext.Render(m.keys.clen.Help().Desc)),
 		}
+		select_keys = []string{
+			fmt.Sprintf("%s %s", darktext.Render(m.keys.todo.Help().Key), darkertext.Render(m.keys.todo.Help().Desc)),
+			fmt.Sprintf("%s %s", darktext.Render(m.keys.nada.Help().Key), darkertext.Render(m.keys.nada.Help().Desc)),
+			fmt.Sprintf("%s %s", darktext.Render(m.keys.invr.Help().Key), darkertext.Render(m.keys.invr.Help().Desc)),
+		}
+		dot      = darkesttext.Render("•")
+		wide_dot = darkesttext.Render(" • ")
 	)
 
 	switch m.mode {
 	case modes.Interactive:
-		mode = strings.Join(keys, darkesttext.Render(" • "))
+		mode = strings.Join(keys, wide_dot)
 	default:
 		mode = m.mode.String()
 	}
+	mode += fmt.Sprintf(" %s select %s", dot, strings.Join(select_keys, wide_dot))
 
-	return fmt.Sprintf("%s %s %d/%d files selected", mode, darkesttext.Render("•"), len(m.selected), len(m.table.Rows()))
+	return fmt.Sprintf(" %s %s %d/%d selected", mode, dot, len(m.selected), len(m.table.Rows()))
 }
 
 func (m model) footer() string {

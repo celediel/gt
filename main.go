@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -54,6 +55,7 @@ var (
 			}
 		}
 
+		// read the term height and width for tables
 		w, h, e := term.GetSize(int(os.Stdout.Fd()))
 		if e != nil {
 			w = 80
@@ -61,6 +63,23 @@ var (
 		}
 		termwidth = w
 		termheight = h
+
+		// ensure trash directories exist
+		if _, e := os.Stat(trashDir); os.IsNotExist(e) {
+			if err := os.Mkdir(trashDir, fs.FileMode(0755)); err != nil {
+				return err
+			}
+		}
+		if _, e := os.Stat(filepath.Join(trashDir, "info")); os.IsNotExist(e) {
+			if err := os.Mkdir(filepath.Join(trashDir, "info"), fs.FileMode(0755)); err != nil {
+				return err
+			}
+		}
+		if _, e := os.Stat(filepath.Join(trashDir, "files")); os.IsNotExist(e) {
+			if err := os.Mkdir(filepath.Join(trashDir, "files"), fs.FileMode(0755)); err != nil {
+				return err
+			}
+		}
 
 		return
 	}

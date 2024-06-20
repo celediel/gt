@@ -328,7 +328,7 @@ func (m model) header() string {
 		mode = m.mode.String()
 	}
 
-	return fmt.Sprintf("%s %s %d files selected", mode, darkesttext.Render("•"), len(m.selected))
+	return fmt.Sprintf("%s %s %d/%d files selected", mode, darkesttext.Render("•"), len(m.selected), len(m.table.Rows()))
 }
 
 func (m model) footer() string {

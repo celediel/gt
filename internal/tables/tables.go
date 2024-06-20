@@ -89,7 +89,7 @@ func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool
 		}
 		r := table.Row{
 			i.Name(),
-			dirs.UnExpand(filepath.Dir(i.OGPath())),
+			dirs.UnExpand(filepath.Dir(i.OGPath()), ""),
 			t,
 			b,
 		}
@@ -120,7 +120,7 @@ func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool
 	return m
 }
 
-func newFilesModel(fs files.Files, width, height int, readonly, preselected bool) model {
+func newFilesModel(fs files.Files, width, height int, readonly, preselected bool, workdir string) model {
 	var (
 		fwidth  int = int(math.Round(float64(width-woffset) * 0.4))
 		owidth  int = int(math.Round(float64(width-woffset) * 0.2))
@@ -150,7 +150,7 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 		}
 		r := table.Row{
 			f.Name(),
-			dirs.UnExpand(f.Path()),
+			dirs.UnExpand(f.Path(), workdir),
 			t,
 			b,
 		}
@@ -473,8 +473,8 @@ func InfoTable(is trash.Infos, width, height int, readonly, preselected bool, mo
 	}
 }
 
-func FilesTable(fs files.Files, width, height int, readonly, preselected bool) ([]int, error) {
-	if endmodel, err := tea.NewProgram(newFilesModel(fs, width, height, readonly, preselected)).Run(); err != nil {
+func FilesTable(fs files.Files, width, height int, readonly, preselected bool, workdir string) ([]int, error) {
+	if endmodel, err := tea.NewProgram(newFilesModel(fs, width, height, readonly, preselected, workdir)).Run(); err != nil {
 		return []int{}, err
 	} else {
 		m, ok := endmodel.(model)

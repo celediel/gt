@@ -94,7 +94,8 @@ var (
 				return nil
 			}
 
-			indices, err := tables.FilesTable(fls, termwidth, termheight, false, !f.Blank())
+			log.Debugf("what is workdir? it's %s", workdir)
+			indices, err := tables.FilesTable(fls, termwidth, termheight, false, !f.Blank(), workdir)
 			if err != nil {
 				return err
 			}

@@ -9,7 +9,9 @@ import (
 // UnExpand unexpands some directory shortcuts
 //
 // $HOME -> ~
-func UnExpand(dir string) (outdir string) {
+// $PWD -> .
+// workdir -> .
+func UnExpand(dir, workdir string) (outdir string) {
 	var (
 		home = os.Getenv("HOME")
 		pwd  string
@@ -18,9 +20,13 @@ func UnExpand(dir string) (outdir string) {
 
 	outdir = filepath.Clean(dir)
 
+	if workdir != "" {
+		outdir = strings.Replace(outdir, workdir, ".", 1)
+	}
+
 	pwd, err = os.Getwd()
 	if err == nil && home != pwd {
-		outdir = strings.Replace(outdir, pwd, "$PWD", 1)
+		outdir = strings.Replace(outdir, pwd, ".", 1)
 	}
 
 	outdir = strings.Replace(outdir, home, "~", 1)

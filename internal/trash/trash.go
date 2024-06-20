@@ -23,7 +23,8 @@ const (
 	trash_info_date_fmt string = "2006-01-02T15:04:05"
 	trash_info_template string = `[Trash Info]
 Path={path}
-DeletionDate={date}`
+DeletionDate={date}
+`
 )
 
 type Info struct {

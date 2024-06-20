@@ -357,6 +357,7 @@ func main() {
 		Action:                 action,
 		Commands:               []*cli.Command{do_trash, do_list, do_restore, do_clean},
 		Flags:                  global_flags,
+		EnableBashCompletion:   true,
 		UseShortOptionHandling: true,
 	}
 

@@ -349,14 +349,15 @@ var (
 
 func main() {
 	app := &cli.App{
-		Name:     appname,
-		Usage:    appdesc,
-		Version:  appversion,
-		Before:   before_all,
-		After:    after,
-		Action:   action,
-		Commands: []*cli.Command{do_trash, do_list, do_restore, do_clean},
-		Flags:    global_flags,
+		Name:                   appname,
+		Usage:                  appdesc,
+		Version:                appversion,
+		Before:                 before_all,
+		After:                  after,
+		Action:                 action,
+		Commands:               []*cli.Command{do_trash, do_list, do_restore, do_clean},
+		Flags:                  global_flags,
+		UseShortOptionHandling: true,
 	}
 
 	if err := app.Run(os.Args); err != nil {

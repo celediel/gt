@@ -19,8 +19,8 @@ func UnExpand(dir string) (outdir string) {
 	outdir = filepath.Clean(dir)
 
 	pwd, err = os.Getwd()
-	if err == nil {
-		outdir = strings.Replace(outdir, pwd, ".", 1)
+	if err == nil && home != pwd {
+		outdir = strings.Replace(outdir, pwd, "$PWD", 1)
 	}
 
 	outdir = strings.Replace(outdir, home, "~", 1)

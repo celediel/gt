@@ -4,6 +4,7 @@ package trash
 
 import (
 	"io/fs"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,7 @@ import (
 )
 
 const (
+	random_str_length   int    = 8
 	trash_info_ext      string = ".trashinfo"
 	trash_info_sec      string = "Trash Info"
 	trash_info_path     string = "Path"
@@ -66,9 +68,11 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 			basepath := s.Key(trash_info_path).String()
 
 			filename := filepath.Base(basepath)
-			// maybe this is kind of a HACK
 			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trash_info_ext, "", 1)
-			info, _ := os.Stat(trashedpath)
+			info, err := os.Stat(trashedpath)
+			if err != nil {
+				log.Errorf("error reading %s: %s", trashedpath, err)
+			}
 
 			s := s.Key(trash_info_date).Value()
 			date, err := time.ParseInLocation(trash_info_date_fmt, s, time.Local)
@@ -144,11 +148,26 @@ func TrashFile(trashDir, name string) error {
 		outdir   = filepath.Join(trashDir, "files")
 		trashout = filepath.Join(trashDir, "info")
 		filename = filepath.Base(name)
+		rando    = random_filename(random_str_length)
 	)
 
 	trashinfo_filename := filepath.Join(trashout, filename+trash_info_ext)
 	out_path := filepath.Join(outdir, filename)
 
+	// check for file collision
+	// TODO: make sure randomly generated name doesn't exist
+	if _, e := os.Stat(trashinfo_filename); e == nil {
+		new_name := filepath.Join(trashout, filename+rando+trash_info_ext)
+		log.Warnf("trashinfo %s exists, using randomized %s", trashinfo_filename, new_name)
+		trashinfo_filename = new_name
+	}
+	if _, e := os.Stat(out_path); e == nil {
+		new_name := filepath.Join(outdir, filename+rando)
+		log.Warnf("trashed file %s exists, using randomized %s", out_path, new_name)
+		out_path = new_name
+	}
+
+	// TODO: write across filesystems
 	if err := os.Rename(name, out_path); err != nil {
 		return err
 	}
@@ -215,4 +234,17 @@ func SortBySizeReverse(a, b Info) int {
 	} else {
 		return 0
 	}
+}
+
+func random_filename(length int) string {
+	out := strings.Builder{}
+	for range length {
+		out.WriteByte(randomChar())
+	}
+	return out.String()
+}
+
+func randomChar() byte {
+	const chars string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+	return chars[rand.Intn(len(chars))]
 }

@@ -51,7 +51,7 @@ var (
 type model struct {
 	table      table.Model
 	keys       keyMap
-	selected   []int
+	selected   map[int]bool
 	readonly   bool
 	termheight int
 	mode       modes.Mode
@@ -73,6 +73,7 @@ func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool
 			readonly:   readonly,
 			termheight: height,
 			mode:       mode,
+			selected:   map[int]bool{},
 		}
 	)
 	slices.SortStableFunc(is, trash.SortByTrashedReverse)
@@ -97,7 +98,7 @@ func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool
 			r = append(r, getCheck(preselected))
 		}
 		if preselected {
-			m.selected = append(m.selected, j)
+			m.selected[j] = true
 		}
 		rows = append(rows, r)
 	}
@@ -132,6 +133,7 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 			keys:     defaultKeyMap(),
 			readonly: readonly,
 			mode:     modes.Trashing,
+			selected: map[int]bool{},
 		}
 	)
 
@@ -157,7 +159,7 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 			r = append(r, getCheck(preselected))
 		}
 		if preselected {
-			m.selected = append(m.selected, j)
+			m.selected[j] = true
 		}
 		rows = append(rows, r)
 	}
@@ -381,13 +383,13 @@ func (m *model) toggle_item(index int) (selected bool) {
 	}
 
 	// select the thing
-	if slices.Contains(m.selected, index) {
+	if v, ok := m.selected[index]; v && ok {
 		// already selected
-		m.selected = slices.DeleteFunc(m.selected, func(other int) bool { return index == other })
+		delete(m.selected, index)
 		selected = false
 	} else {
 		// not selected
-		m.selected = append(m.selected, index)
+		m.selected[index] = true
 		selected = true
 	}
 
@@ -401,9 +403,9 @@ func (m *model) select_all() {
 		return
 	}
 
-	m.selected = []int{}
+	m.selected = map[int]bool{}
 	for i := range len(m.table.Rows()) {
-		m.selected = append(m.selected, i)
+		m.selected[i] = true
 	}
 	m.update_rows(true)
 }
@@ -413,7 +415,7 @@ func (m *model) unselect_all() {
 		return
 	}
 
-	m.selected = []int{}
+	m.selected = map[int]bool{}
 	m.update_rows(false)
 }
 
@@ -421,8 +423,8 @@ func (m *model) invert_selection() {
 	var newrows []table.Row
 
 	for index, row := range m.table.Rows() {
-		if slices.Contains(m.selected, index) {
-			m.selected = slices.DeleteFunc(m.selected, func(other int) bool { return index == other })
+		if v, ok := m.selected[index]; v && ok {
+			delete(m.selected, index)
 			newrows = append(newrows, table.Row{
 				row[0],
 				row[1],
@@ -431,7 +433,7 @@ func (m *model) invert_selection() {
 				getCheck(false),
 			})
 		} else {
-			m.selected = append(m.selected, index)
+			m.selected[index] = true
 			newrows = append(newrows, table.Row{
 				row[0],
 				row[1],
@@ -451,7 +453,12 @@ func InfoTable(is trash.Infos, width, height int, readonly, preselected bool, mo
 	} else {
 		m, ok := endmodel.(model)
 		if ok {
-			return m.selected, m.mode, nil
+			selected := make([]int, 0, len(m.selected))
+			for k := range m.selected {
+				selected = append(selected, k)
+			}
+
+			return selected, m.mode, nil
 		} else {
 			return []int{}, 0, fmt.Errorf("model isn't the right type??")
 		}
@@ -464,7 +471,12 @@ func FilesTable(fs files.Files, width, height int, readonly, preselected bool) (
 	} else {
 		m, ok := endmodel.(model)
 		if ok {
-			return m.selected, nil
+			selected := make([]int, 0, len(m.selected))
+			for k := range m.selected {
+				selected = append(selected, k)
+			}
+
+			return selected, nil
 		} else {
 			return []int{}, fmt.Errorf("model isn't the right type??")
 		}

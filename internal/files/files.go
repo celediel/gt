@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"git.burning.moe/celediel/gt/internal/filter"
@@ -53,9 +54,30 @@ func Find(dir string, recursive bool, f *filter.Filter) (files Files, err error)
 	return
 }
 
+// is_in_recursive_dir checks `path` and parent directories
+// of `path` up to `base` for a hidden parent
+func is_in_recursive_dir(base, path string) bool {
+	me := path
+	for {
+		me = filepath.Clean(me)
+		if me == base {
+			break
+		}
+		if strings.HasPrefix(filepath.Base(me), ".") {
+			return true
+		}
+		me += string(os.PathSeparator) + ".."
+	}
+	return false
+}
+
 func walk_dir(dir string, f *filter.Filter) (files Files) {
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if dir == path {
+			return nil
+		}
+
+		if is_in_recursive_dir(dir, path) && f.IgnoreHidden() {
 			return nil
 		}
 
@@ -63,11 +85,16 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 		if e != nil {
 			return err
 		}
+
 		name := d.Name()
 		info, _ := d.Info()
 		if f.Match(name, info.ModTime(), info.IsDir()) {
 			log.Debugf("found matching file: %s %s", name, info.ModTime())
-			i, _ := os.Stat(p)
+			i, err := os.Stat(p)
+			if err != nil {
+				log.Debugf("error in file stat: %s", err)
+				return nil
+			}
 			files = append(files, File{
 				path:     filepath.Dir(p),
 				name:     name,
@@ -81,6 +108,7 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 		return nil
 	})
 	if err != nil {
+		log.Errorf("error walking directory %s: %s", dir, err)
 		return []File{}
 	}
 	return

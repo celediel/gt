@@ -139,13 +139,15 @@ func Remove(files []Info) (removed int, err error) {
 }
 
 func TrashFile(trashDir, name string) error {
-	outdir := filepath.Join(trashDir, "files")
-	trashout := filepath.Join(trashDir, "info")
+	var (
+		outdir   = filepath.Join(trashDir, "files")
+		trashout = filepath.Join(trashDir, "info")
+		filename = filepath.Base(name)
+	)
 
-	filename := filepath.Base(name)
 	trashinfo_filename := filepath.Join(trashout, filename+trash_info_ext)
-
 	out_path := filepath.Join(outdir, filename)
+
 	if err := os.Rename(name, out_path); err != nil {
 		return err
 	}

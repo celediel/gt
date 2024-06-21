@@ -204,7 +204,7 @@ func defaultKeyMap() keyMap {
 		),
 		todo: key.NewBinding(
 			key.WithKeys("a", "ctrl+a"),
-			key.WithHelp("a", "all"),
+			key.WithHelp("a", "select all"),
 		),
 		nada: key.NewBinding(
 			key.WithKeys("n", "ctrl+n"),
@@ -336,9 +336,9 @@ func (m model) header() string {
 	default:
 		mode = m.mode.String()
 	}
-	mode += fmt.Sprintf(" %s select %s", dot, strings.Join(select_keys, wide_dot))
+	mode += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
 
-	return fmt.Sprintf(" %s %s %d/%d selected", mode, dot, len(m.selected), len(m.table.Rows()))
+	return fmt.Sprintf(" %s %s %d/%d", mode, dot, len(m.selected), len(m.table.Rows()))
 }
 
 func (m model) footer() string {

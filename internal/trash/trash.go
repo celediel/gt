@@ -12,6 +12,7 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/filter"
 	"github.com/charmbracelet/log"
+	"github.com/dustin/go-humanize"
 	"gitlab.com/tymonx/go-formatter/formatter"
 	"gopkg.in/ini.v1"
 )
@@ -144,28 +145,7 @@ func Remove(files []Info) (removed int, err error) {
 }
 
 func TrashFile(trashDir, name string) error {
-	var (
-		outdir   = filepath.Join(trashDir, "files")
-		trashout = filepath.Join(trashDir, "info")
-		filename = filepath.Base(name)
-		rando    = random_filename(random_str_length)
-	)
-
-	trashinfo_filename := filepath.Join(trashout, filename+trash_info_ext)
-	out_path := filepath.Join(outdir, filename)
-
-	// check for file collision
-	// TODO: make sure randomly generated name doesn't exist
-	if _, e := os.Stat(trashinfo_filename); e == nil {
-		new_name := filepath.Join(trashout, filename+rando+trash_info_ext)
-		log.Warnf("trashinfo %s exists, using randomized %s", trashinfo_filename, new_name)
-		trashinfo_filename = new_name
-	}
-	if _, e := os.Stat(out_path); e == nil {
-		new_name := filepath.Join(outdir, filename+rando)
-		log.Warnf("trashed file %s exists, using randomized %s", out_path, new_name)
-		out_path = new_name
-	}
+	trashinfo_filename, out_path := ensureUniqueName(filepath.Base(name), trashDir)
 
 	// TODO: write across filesystems
 	if err := os.Rename(name, out_path); err != nil {
@@ -247,4 +227,32 @@ func random_filename(length int) string {
 func randomChar() byte {
 	const chars string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 	return chars[rand.Intn(len(chars))]
+}
+
+func ensureUniqueName(filename, trashDir string) (string, string) {
+	var (
+		filedir = filepath.Join(trashDir, "files")
+		infodir = filepath.Join(trashDir, "info")
+	)
+
+	info := filepath.Join(infodir, filename+trash_info_ext)
+	if _, err := os.Stat(info); os.IsNotExist(err) {
+		// doesn't exist, so use it
+		path := filepath.Join(filedir, filename)
+		return info, path
+	} else {
+		// otherwise, try random suffixes until one works
+		log.Debugf("%s exists in trash, generating random name", filename)
+		var tries int
+		for {
+			tries++
+			rando := random_filename(random_str_length)
+			new_name := filepath.Join(infodir, filename+rando+trash_info_ext)
+			if _, err := os.Stat(new_name); os.IsNotExist(err) {
+				path := filepath.Join(filedir, filename+rando)
+				log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
+				return new_name, path
+			}
+		}
+	}
 }

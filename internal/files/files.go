@@ -10,6 +10,7 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/filter"
 	"github.com/charmbracelet/log"
+	"github.com/dustin/go-humanize"
 )
 
 type File struct {
@@ -27,6 +28,33 @@ func (f File) Filename() string    { return filepath.Join(f.path, f.name) }
 func (f File) Modified() time.Time { return f.modified }
 func (f File) Filesize() int64     { return f.filesize }
 func (f File) IsDir() bool         { return f.isdir }
+
+func New(path string) (File, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return File{}, err
+	}
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		log.Errorf("couldn't get absolute path for %s", path)
+		abs = path
+	}
+
+	name := filepath.Base(abs)
+	base_path := filepath.Dir(abs)
+
+	log.Debugf("%s (base:%s) (size:%s) (modified:%s) exists",
+		name, base_path, humanize.Bytes(uint64(info.Size())), info.ModTime())
+
+	return File{
+		name:     name,
+		path:     base_path,
+		filesize: info.Size(),
+		modified: info.ModTime(),
+		isdir:    info.IsDir(),
+	}, nil
+}
 
 func Find(dir string, recursive bool, f *filter.Filter) (files Files, err error) {
 	if dir == "." || dir == "" {

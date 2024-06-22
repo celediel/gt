@@ -93,6 +93,14 @@ var (
 		return
 	}
 
+	before_trash = func(_ *cli.Context) (err error) {
+		if f == nil {
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
+		}
+		log.Debugf("filter: %s", f.String())
+		return
+	}
+
 	after = func(ctx *cli.Context) error {
 		return nil
 	}
@@ -102,26 +110,41 @@ var (
 		Aliases: []string{"tr"},
 		Usage:   "Trash a file or files",
 		Flags:   slices.Concat(trash_flags, filter_flags),
-		Before:  before_commands,
+		Before:  before_trash,
 		Action: func(ctx *cli.Context) error {
-			fls, err := files.Find(workdir, recursive, f)
-			if err != nil {
-				return err
+			var files_to_trash files.Files
+			for _, arg := range ctx.Args().Slice() {
+				file, e := files.New(arg)
+				if e != nil {
+					log.Debugf("%s wasn't really a file", arg)
+					f.AddFileName(arg)
+					continue
+				}
+				files_to_trash = append(files_to_trash, file)
 			}
-			if len(fls) == 0 {
-				fmt.Println("no files to trash")
-				return nil
+
+			// if none of the args were files, then process find files based on filter
+			if len(files_to_trash) == 0 {
+				fls, err := files.Find(workdir, recursive, f)
+				if err != nil {
+					return err
+				}
+				if len(fls) == 0 {
+					fmt.Println("no files to trash")
+					return nil
+				}
+				files_to_trash = append(files_to_trash, fls...)
 			}
 
 			log.Debugf("what is workdir? it's %s", workdir)
-			indices, err := tables.FilesTable(fls, termwidth, termheight, false, !f.Blank(), workdir)
+			indices, err := tables.FilesTable(files_to_trash, termwidth, termheight, false, !f.Blank(), workdir)
 			if err != nil {
 				return err
 			}
 
 			var selected files.Files
 			for _, i := range indices {
-				selected = append(selected, fls[i])
+				selected = append(selected, files_to_trash[i])
 			}
 
 			if len(selected) <= 0 {
@@ -146,7 +169,6 @@ var (
 		}
 
 		if len(ctx.Args().Slice()) != 0 {
-			f.AddFileNames(ctx.Args().Slice()...)
 			return do_trash.Action(ctx)
 		} else {
 			return interactive_mode()

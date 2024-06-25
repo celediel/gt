@@ -216,7 +216,7 @@ func SortBySizeReverse(a, b Info) int {
 	}
 }
 
-func random_filename(length int) string {
+func randomFilename(length int) string {
 	out := strings.Builder{}
 	for range length {
 		out.WriteByte(randomChar())
@@ -246,7 +246,7 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 		var tries int
 		for {
 			tries++
-			rando := random_filename(random_str_length)
+			rando := randomFilename(random_str_length)
 			new_name := filepath.Join(infodir, filename+rando+trash_info_ext)
 			if _, err := os.Stat(new_name); os.IsNotExist(err) {
 				path := filepath.Join(filedir, filename+rando)

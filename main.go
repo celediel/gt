@@ -43,7 +43,7 @@ var (
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
-	before_all = func(ctx *cli.Context) (err error) {
+	beforeAll = func(ctx *cli.Context) (err error) {
 		// setup log
 		log.SetReportTimestamp(true)
 		log.SetTimeFormat(time.TimeOnly)
@@ -84,7 +84,27 @@ var (
 		return
 	}
 
-	before_commands = func(ctx *cli.Context) (err error) {
+	// action launches interactive mode if run without args, or trashes files as args
+	action = func(ctx *cli.Context) error {
+		var (
+			err error
+		)
+
+		if f == nil {
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
+		}
+		if err != nil {
+			return err
+		}
+
+		if len(ctx.Args().Slice()) != 0 {
+			return doTrash.Action(ctx)
+		} else {
+			return interactiveMode()
+		}
+	}
+
+	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
 			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih, ctx.Args().Slice()...)
@@ -93,7 +113,7 @@ var (
 		return
 	}
 
-	before_trash = func(_ *cli.Context) (err error) {
+	beforeTrash = func(_ *cli.Context) (err error) {
 		if f == nil {
 			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
 		}
@@ -105,12 +125,12 @@ var (
 		return nil
 	}
 
-	do_trash = &cli.Command{
+	doTrash = &cli.Command{
 		Name:    "trash",
 		Aliases: []string{"tr"},
 		Usage:   "Trash a file or files",
-		Flags:   slices.Concat(trash_flags, filter_flags),
-		Before:  before_trash,
+		Flags:   slices.Concat(trashFlags, filterFlags),
+		Before:  beforeTrash,
 		Action: func(ctx *cli.Context) error {
 			var files_to_trash files.Files
 			for _, arg := range ctx.Args().Slice() {
@@ -151,36 +171,16 @@ var (
 				return nil
 			}
 
-			return confirm_trash(selected)
+			return confirmTrash(selected)
 		},
 	}
 
-	// action launches interactive mode if run without args, or trashes files as args
-	action = func(ctx *cli.Context) error {
-		var (
-			err error
-		)
-
-		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
-		}
-		if err != nil {
-			return err
-		}
-
-		if len(ctx.Args().Slice()) != 0 {
-			return do_trash.Action(ctx)
-		} else {
-			return interactive_mode()
-		}
-	}
-
-	do_list = &cli.Command{
+	doList = &cli.Command{
 		Name:    "list",
 		Aliases: []string{"ls"},
 		Usage:   "List trashed files",
-		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
-		Before:  before_commands,
+		Flags:   slices.Concat(alreadyintrashFlags, filterFlags),
+		Before:  beforeCommands,
 		Action: func(ctx *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
@@ -208,12 +208,12 @@ var (
 		},
 	}
 
-	do_restore = &cli.Command{
+	doRestore = &cli.Command{
 		Name:    "restore",
 		Aliases: []string{"re"},
 		Usage:   "Restore a trashed file or files",
-		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
-		Before:  before_commands,
+		Flags:   slices.Concat(alreadyintrashFlags, filterFlags),
+		Before:  beforeCommands,
 		Action: func(ctx *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
@@ -240,16 +240,16 @@ var (
 				return nil
 			}
 
-			return confirm_restore(selected)
+			return confirmRestore(selected)
 		},
 	}
 
-	do_clean = &cli.Command{
+	doClean = &cli.Command{
 		Name:    "clean",
 		Aliases: []string{"cl"},
 		Usage:   "Clean files from trash",
-		Flags:   slices.Concat(alreadyintrash_flags, filter_flags),
-		Before:  before_commands,
+		Flags:   slices.Concat(alreadyintrashFlags, filterFlags),
+		Before:  beforeCommands,
 		Action: func(ctx *cli.Context) error {
 			fls, err := trash.FindFiles(trashDir, ogdir, f)
 			if len(fls) == 0 {
@@ -273,11 +273,11 @@ var (
 				return nil
 			}
 
-			return confirm_clean(selected)
+			return confirmClean(selected)
 		},
 	}
 
-	global_flags = []cli.Flag{
+	globalFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "log",
 			Usage:       "log level",
@@ -295,7 +295,7 @@ var (
 		},
 	}
 
-	filter_flags = []cli.Flag{
+	filterFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "match",
 			Usage:       "operate on files matching regex `PATTERN`",
@@ -361,7 +361,7 @@ var (
 		},
 	}
 
-	trash_flags = []cli.Flag{
+	trashFlags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:               "recursive",
 			Usage:              "operate on files recursively",
@@ -378,7 +378,7 @@ var (
 		},
 	}
 
-	alreadyintrash_flags = []cli.Flag{
+	alreadyintrashFlags = []cli.Flag{
 		&cli.PathFlag{
 			Name:        "original-path",
 			Usage:       "operate on files trashed from this `DIRECTORY`",
@@ -393,11 +393,11 @@ func main() {
 		Name:                   appname,
 		Usage:                  appdesc,
 		Version:                appversion,
-		Before:                 before_all,
+		Before:                 beforeAll,
 		After:                  after,
 		Action:                 action,
-		Commands:               []*cli.Command{do_trash, do_list, do_restore, do_clean},
-		Flags:                  global_flags,
+		Commands:               []*cli.Command{doTrash, doList, doRestore, doClean},
+		Flags:                  globalFlags,
 		EnableBashCompletion:   true,
 		UseShortOptionHandling: true,
 	}
@@ -407,7 +407,7 @@ func main() {
 	}
 }
 
-func interactive_mode() error {
+func interactiveMode() error {
 	var (
 		fls      trash.Infos
 		indicies []int
@@ -440,14 +440,14 @@ func interactive_mode() error {
 		for _, file := range selected {
 			log.Debugf("gonna clean %s", file.Name())
 		}
-		if err := confirm_clean(selected); err != nil {
+		if err := confirmClean(selected); err != nil {
 			return err
 		}
 	case modes.Restoring:
 		for _, file := range selected {
 			log.Debugf("gonna restore %s", file.Name())
 		}
-		if err := confirm_restore(selected); err != nil {
+		if err := confirmRestore(selected); err != nil {
 			return err
 		}
 	case modes.Interactive:
@@ -458,7 +458,7 @@ func interactive_mode() error {
 	return nil
 }
 
-func confirm_restore(is trash.Infos) error {
+func confirmRestore(is trash.Infos) error {
 	if !askconfirm || confirm(fmt.Sprintf("restore %d selected files?", len(is))) {
 		log.Info("doing the thing")
 		restored, err := trash.Restore(is)
@@ -472,7 +472,7 @@ func confirm_restore(is trash.Infos) error {
 	return nil
 }
 
-func confirm_clean(is trash.Infos) error {
+func confirmClean(is trash.Infos) error {
 	if confirm(fmt.Sprintf("remove %d selected files permanently from the trash?", len(is))) &&
 		(!askconfirm || confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is)))) {
 		log.Info("gonna remove some files forever")
@@ -487,7 +487,7 @@ func confirm_clean(is trash.Infos) error {
 	return nil
 }
 
-func confirm_trash(fs files.Files) error {
+func confirmTrash(fs files.Files) error {
 	if !askconfirm || confirm(fmt.Sprintf("trash %d selected files?", len(fs))) {
 		tfs := make([]string, 0, len(fs))
 		for _, file := range fs {

@@ -255,11 +255,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.invr):
 			m.invert_selection()
 		case key.Matches(msg, m.keys.clen):
-			m.mode = modes.Cleaning
-			return m.quit(false)
+			if m.mode == modes.Interactive {
+				m.mode = modes.Cleaning
+				return m.quit(false)
+			}
 		case key.Matches(msg, m.keys.rstr):
-			m.mode = modes.Restoring
-			return m.quit(false)
+			if m.mode == modes.Interactive {
+				m.mode = modes.Restoring
+				return m.quit(false)
+			}
 		case key.Matches(msg, m.keys.quit):
 			return m.quit(true)
 		}

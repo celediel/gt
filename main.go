@@ -133,6 +133,7 @@ var (
 		Before:  beforeTrash,
 		Action: func(ctx *cli.Context) error {
 			var files_to_trash files.Files
+			var selectall bool
 			for _, arg := range ctx.Args().Slice() {
 				file, e := files.New(arg)
 				if e != nil {
@@ -141,6 +142,7 @@ var (
 					continue
 				}
 				files_to_trash = append(files_to_trash, file)
+				selectall = true
 			}
 
 			// if none of the args were files, then process find files based on filter
@@ -154,10 +156,11 @@ var (
 					return nil
 				}
 				files_to_trash = append(files_to_trash, fls...)
+				selectall = !f.Blank()
 			}
 
 			log.Debugf("what is workdir? it's %s", workdir)
-			indices, err := tables.FilesTable(files_to_trash, termwidth, termheight, false, !f.Blank(), workdir)
+			indices, err := tables.FilesTable(files_to_trash, termwidth, termheight, false, selectall, workdir)
 			if err != nil {
 				return err
 			}

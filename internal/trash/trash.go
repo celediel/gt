@@ -3,6 +3,7 @@
 package trash
 
 import (
+	"fmt"
 	"io/fs"
 	"math/rand"
 	"os"
@@ -12,6 +13,8 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/dirs"
 	"git.burning.moe/celediel/gt/internal/filter"
+	"git.burning.moe/celediel/gt/internal/prompt"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
 	"github.com/dustin/go-humanize"
 	"gitlab.com/tymonx/go-formatter/formatter"
@@ -113,7 +116,14 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 func Restore(files []Info) (restored int, err error) {
 	for _, file := range files {
 		var outpath string = dirs.UnEscape(file.ogpath)
+		var cancel bool
 		log.Infof("restoring %s back to %s\n", file.name, outpath)
+		if _, e := os.Stat(outpath); e == nil {
+			outpath, cancel = promptNewPath(outpath)
+		}
+		if cancel {
+			continue
+		}
 		if err = os.Rename(file.path, outpath); err != nil {
 			return restored, err
 		}
@@ -255,6 +265,28 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 				log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
 				return new_name, path
 			}
+		}
+	}
+}
+
+func promptNewPath(path string) (string, bool) {
+	for {
+		answer := prompt.AskRune(fmt.Sprintf("file %s exists, overwrite, rename, or cancel?", path), "o/r/c")
+		switch answer {
+		case 'o', 'O':
+			return path, false
+		case 'r', 'R':
+			if err := huh.NewInput().
+				Title("input a new filename").
+				Value(&path).
+				Run(); err != nil {
+				return path, false
+			}
+			if _, e := os.Stat(path); e != nil {
+				return path, false
+			}
+		default:
+			return path, true
 		}
 	}
 }

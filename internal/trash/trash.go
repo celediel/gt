@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"git.burning.moe/celediel/gt/internal/dirs"
 	"git.burning.moe/celediel/gt/internal/filter"
 	"github.com/charmbracelet/log"
 	"github.com/dustin/go-humanize"
@@ -111,8 +112,9 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 
 func Restore(files []Info) (restored int, err error) {
 	for _, file := range files {
-		log.Infof("restoring %s back to %s\n", file.name, file.ogpath)
-		if err = os.Rename(file.path, file.ogpath); err != nil {
+		var outpath string = dirs.UnEscape(file.ogpath)
+		log.Infof("restoring %s back to %s\n", file.name, outpath)
+		if err = os.Rename(file.path, outpath); err != nil {
 			return restored, err
 		}
 		if err = os.Remove(file.trashinfo); err != nil {

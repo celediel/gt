@@ -88,7 +88,7 @@ func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool
 			b = humanize.Bytes(uint64(i.Filesize()))
 		}
 		r := table.Row{
-			i.Name(),
+			dirs.UnEscape(i.Name()),
 			dirs.UnExpand(filepath.Dir(i.OGPath()), ""),
 			t,
 			b,
@@ -149,7 +149,7 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 			b = humanize.Bytes(uint64(f.Filesize()))
 		}
 		r := table.Row{
-			f.Name(),
+			dirs.UnEscape(f.Name()),
 			dirs.UnExpand(f.Path(), workdir),
 			t,
 			b,

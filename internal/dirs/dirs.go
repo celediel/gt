@@ -31,5 +31,11 @@ func UnExpand(dir, workdir string) (outdir string) {
 
 	outdir = strings.Replace(outdir, home, "~", 1)
 
+	outdir = UnEscape(outdir)
+
 	return
+}
+
+func UnEscape(input string) string {
+	return strings.ReplaceAll(input, "%20", " ")
 }

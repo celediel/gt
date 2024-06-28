@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/filter"
 	"git.burning.moe/celediel/gt/internal/modes"
+	"git.burning.moe/celediel/gt/internal/prompt"
 	"git.burning.moe/celediel/gt/internal/tables"
 	"git.burning.moe/celediel/gt/internal/trash"
 
@@ -459,7 +459,7 @@ func interactiveMode() error {
 }
 
 func confirmRestore(is trash.Infos) error {
-	if !askconfirm || confirm(fmt.Sprintf("restore %d selected files?", len(is))) {
+	if !askconfirm || prompt.YesNo(fmt.Sprintf("restore %d selected files?", len(is))) {
 		log.Info("doing the thing")
 		restored, err := trash.Restore(is)
 		if err != nil {
@@ -473,8 +473,8 @@ func confirmRestore(is trash.Infos) error {
 }
 
 func confirmClean(is trash.Infos) error {
-	if confirm(fmt.Sprintf("remove %d selected files permanently from the trash?", len(is))) &&
-		(!askconfirm || confirm(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is)))) {
+	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(is))) &&
+		(!askconfirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is)))) {
 		log.Info("gonna remove some files forever")
 		removed, err := trash.Remove(is)
 		if err != nil {
@@ -488,7 +488,7 @@ func confirmClean(is trash.Infos) error {
 }
 
 func confirmTrash(fs files.Files) error {
-	if !askconfirm || confirm(fmt.Sprintf("trash %d selected files?", len(fs))) {
+	if !askconfirm || prompt.YesNo(fmt.Sprintf("trash %d selected files?", len(fs))) {
 		tfs := make([]string, 0, len(fs))
 		for _, file := range fs {
 			log.Debugf("gonna trash %s", file.Filename())
@@ -505,29 +505,4 @@ func confirmTrash(fs files.Files) error {
 		return nil
 	}
 	return nil
-}
-
-func confirm(prompt string) bool {
-	// TODO: handle errors better
-	// switch stdin into 'raw' mode
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
-			panic(err)
-		}
-	}()
-
-	fmt.Printf("%s [%s/%s]: ", prompt, string(yes), string(no))
-
-	// read one byte from stdin
-	b := make([]byte, 1)
-	_, err = os.Stdin.Read(b)
-	if err != nil {
-		return false
-	}
-
-	return bytes.ToLower(b)[0] == 'y'
 }

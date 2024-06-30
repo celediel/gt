@@ -432,7 +432,13 @@ func interactiveMode() error {
 	}
 
 	if len(fls) <= 0 {
-		log.Printf("no files to show")
+		var msg string
+		if f.Blank() {
+			msg = "trash is empty"
+		} else {
+			msg = "no files to show"
+		}
+		fmt.Println(msg)
 		return nil
 	}
 

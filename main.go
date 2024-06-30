@@ -199,7 +199,7 @@ var (
 			fls, err := trash.FindFiles(trashDir, ogdir, f)
 
 			var msg string
-			if f.Blank() {
+			if f.Blank() && ogdir == "" {
 				msg = "trash is empty"
 			} else {
 				msg = "no files to show"

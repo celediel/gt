@@ -246,7 +246,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toggleItem(m.table.Cursor())
 		case key.Matches(msg, m.keys.doit):
 			if !m.readonly && m.mode != modes.Interactive {
-				return m, tea.Quit
+				return m.quit(false)
 			}
 		case key.Matches(msg, m.keys.nada):
 			m.unselectAll()
@@ -352,9 +352,23 @@ func (m model) footer() string {
 func (m model) quit(unselect_all bool) (model, tea.Cmd) {
 	if unselect_all {
 		m.unselectAll()
+	} else {
+		m.onlySelected()
 	}
 	m.table.SetStyles(makeUnselectedStyle())
 	return m, tea.Quit
+}
+
+func (m *model) onlySelected() {
+	var rows = make([]table.Row, 0)
+	for _, row := range m.table.Rows() {
+		if row[4] == check {
+			rows = append(rows, row)
+		} else {
+			rows = append(rows, table.Row{})
+		}
+	}
+	m.table.SetRows(rows)
 }
 
 // updateRow updates row of `index` with `row`

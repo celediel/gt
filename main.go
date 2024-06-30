@@ -34,7 +34,7 @@ var (
 	f              *filter.Filter
 	o, b, a, g, p  string
 	ung, unp       string
-	fo, do, ih     bool
+	fo, do, sh     bool
 	askconfirm     bool
 	workdir, ogdir cli.Path
 	recursive      bool
@@ -91,7 +91,7 @@ var (
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh)
 		}
 		if err != nil {
 			return err
@@ -115,7 +115,7 @@ var (
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -123,7 +123,7 @@ var (
 
 	beforeTrash = func(_ *cli.Context) (err error) {
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, ih)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -364,11 +364,11 @@ var (
 			Destination:        &do,
 		},
 		&cli.BoolFlag{
-			Name:               "ignore-hidden",
-			Usage:              "operate on unhidden files only",
-			Aliases:            []string{"i"},
+			Name:               "hidden",
+			Usage:              "operate on hidden files",
+			Aliases:            []string{"H"},
 			DisableDefaultText: true,
-			Destination:        &ih,
+			Destination:        &sh,
 		},
 	}
 

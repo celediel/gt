@@ -98,7 +98,15 @@ var (
 		}
 
 		if len(ctx.Args().Slice()) != 0 {
-			return doTrash.Action(ctx)
+			var files_to_trash files.Files
+			for _, arg := range ctx.Args().Slice() {
+				file, e := files.New(arg)
+				if e != nil {
+					log.Fatalf("cannot trash '%s': No such file or directory", arg)
+				}
+				files_to_trash = append(files_to_trash, file)
+			}
+			return confirmTrash(files_to_trash)
 		} else {
 			return interactiveMode()
 		}

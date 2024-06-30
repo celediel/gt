@@ -3,6 +3,7 @@ package prompt
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 
 	"golang.org/x/term"
@@ -15,15 +16,14 @@ func YesNo(prompt string) bool {
 }
 
 func AskRune(prompt, options string) byte {
-	// TODO: handle errors better
 	// switch stdin into 'raw' mode
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer func() {
 		if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 

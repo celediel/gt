@@ -352,14 +352,14 @@ var (
 		&cli.BoolFlag{
 			Name:               "files-only",
 			Usage:              "operate on files only",
-			Aliases:            []string{"f"},
+			Aliases:            []string{"F"},
 			DisableDefaultText: true,
 			Destination:        &fo,
 		},
 		&cli.BoolFlag{
 			Name:               "dirs-only",
 			Usage:              "operate on directories only",
-			Aliases:            []string{"d"},
+			Aliases:            []string{"D"},
 			DisableDefaultText: true,
 			Destination:        &do,
 		},

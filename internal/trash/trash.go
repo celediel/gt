@@ -161,6 +161,9 @@ func TrashFile(trashDir, name string) error {
 
 	// TODO: write across filesystems
 	if err := os.Rename(name, out_path); err != nil {
+		if strings.Contains(err.Error(), "invalid cross-device link") {
+			return fmt.Errorf("not trashing file '%s': On different filesystem from trash directory", name)
+		}
 		return err
 	}
 

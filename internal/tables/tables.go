@@ -243,17 +243,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.mark):
-			m.toggle_item(m.table.Cursor())
+			m.toggleItem(m.table.Cursor())
 		case key.Matches(msg, m.keys.doit):
 			if !m.readonly && m.mode != modes.Interactive {
 				return m, tea.Quit
 			}
 		case key.Matches(msg, m.keys.nada):
-			m.unselect_all()
+			m.unselectAll()
 		case key.Matches(msg, m.keys.todo):
-			m.select_all()
+			m.selectAll()
 		case key.Matches(msg, m.keys.invr):
-			m.invert_selection()
+			m.invertSelection()
 		case key.Matches(msg, m.keys.clen):
 			if m.mode == modes.Interactive {
 				m.mode = modes.Cleaning
@@ -351,14 +351,14 @@ func (m model) footer() string {
 
 func (m model) quit(unselect_all bool) (model, tea.Cmd) {
 	if unselect_all {
-		m.unselect_all()
+		m.unselectAll()
 	}
 	m.table.SetStyles(makeUnselectedStyle())
 	return m, tea.Quit
 }
 
-// update_row updates row of `index` with `row`
-func (m *model) update_row(index int, selected bool) {
+// updateRow updates row of `index` with `row`
+func (m *model) updateRow(index int, selected bool) {
 	rows := m.table.Rows()
 	row := rows[index]
 	rows[index] = table.Row{
@@ -372,7 +372,7 @@ func (m *model) update_row(index int, selected bool) {
 	m.table.SetRows(rows)
 }
 
-func (m *model) update_rows(selected bool) {
+func (m *model) updateRows(selected bool) {
 	var newrows []table.Row
 
 	for _, row := range m.table.Rows() {
@@ -388,8 +388,8 @@ func (m *model) update_rows(selected bool) {
 	m.table.SetRows(newrows)
 }
 
-// toggle_item toggles an item's selected state, and returns the state
-func (m *model) toggle_item(index int) (selected bool) {
+// toggleItem toggles an item's selected state, and returns the state
+func (m *model) toggleItem(index int) (selected bool) {
 	if m.readonly {
 		return false
 	}
@@ -406,11 +406,11 @@ func (m *model) toggle_item(index int) (selected bool) {
 	}
 
 	// update the rows with the state
-	m.update_row(index, selected)
+	m.updateRow(index, selected)
 	return
 }
 
-func (m *model) select_all() {
+func (m *model) selectAll() {
 	if m.readonly {
 		return
 	}
@@ -419,19 +419,19 @@ func (m *model) select_all() {
 	for i := range len(m.table.Rows()) {
 		m.selected[i] = true
 	}
-	m.update_rows(true)
+	m.updateRows(true)
 }
 
-func (m *model) unselect_all() {
+func (m *model) unselectAll() {
 	if m.readonly {
 		return
 	}
 
 	m.selected = map[int]bool{}
-	m.update_rows(false)
+	m.updateRows(false)
 }
 
-func (m *model) invert_selection() {
+func (m *model) invertSelection() {
 	var newrows []table.Row
 
 	for index, row := range m.table.Rows() {

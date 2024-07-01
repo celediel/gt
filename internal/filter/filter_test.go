@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 )
@@ -28,14 +29,16 @@ type testholder struct {
 	filesonly, dirsonly bool
 	showhidden          bool
 	good, bad           []singletest
+	minsize, maxsize    string
 }
 
 func (t testholder) String() string {
 	return fmt.Sprintf(
 		"pattern:'%s' glob:'%s' unpattern:'%s' unglob:'%s' filenames:'%v' "+
-			"before:'%s' after:'%s' on:'%s' filesonly:'%t' dirsonly:'%t' showhidden:'%t'",
+			"before:'%s' after:'%s' on:'%s' filesonly:'%t' dirsonly:'%t' "+
+			"showhidden:'%t' minsize:'%s' maxsize:'%s'",
 		t.pattern, t.glob, t.unpattern, t.unglob, t.filenames, t.before, t.after, t.on,
-		t.filesonly, t.dirsonly, t.showhidden,
+		t.filesonly, t.dirsonly, t.showhidden, t.minsize, t.maxsize,
 	)
 }
 
@@ -43,10 +46,11 @@ type singletest struct {
 	filename string
 	isdir    bool
 	modified time.Time
+	size     int64
 }
 
 func (s singletest) String() string {
-	return fmt.Sprintf("filename:'%s' modified:'%s' isdir:'%t'", s.filename, s.modified, s.isdir)
+	return fmt.Sprintf("filename:'%s' modified:'%s' size:'%d' isdir:'%t'", s.filename, s.modified, s.size, s.isdir)
 }
 
 func testmatch(t *testing.T, testers []testholder) {
@@ -58,7 +62,8 @@ func testmatch(t *testing.T, testers []testholder) {
 	for _, tester := range testers {
 		f, err = New(
 			tester.on, tester.before, tester.after, tester.glob, tester.pattern,
-			tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly, tester.showhidden,
+			tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
+			tester.showhidden, tester.minsize, tester.maxsize,
 			tester.filenames...,
 		)
 		if err != nil {
@@ -67,50 +72,42 @@ func testmatch(t *testing.T, testers []testholder) {
 
 		for _, tst := range tester.good {
 			t.Run(fmt.Sprintf(testnamefmt+"_good", tst.filename, tst.modified), func(t *testing.T) {
-				if !f.Match(tst.filename, tst.modified, tst.isdir) {
-					t.Fatalf("(filename:%s modified:%s) didn't match (%s) but should have", tst.filename, tst.modified, tester)
+				if !f.Match(tst.filename, tst.modified, tst.size, tst.isdir) {
+					t.Fatalf("(%s) didn't match (%s) but should have", tst, tester)
 				}
 			})
 		}
 
 		for _, tst := range tester.bad {
 			t.Run(fmt.Sprintf(testnamefmt+"_bad", tst.filename, tst.modified), func(t *testing.T) {
-				if f.Match(tst.filename, tst.modified, tst.isdir) {
-					t.Fatalf("(filename:%s modified:%s) matched (%s) but shouldn't have", tst.filename, tst.modified, tester)
+				if f.Match(tst.filename, tst.modified, tst.size, tst.isdir) {
+					t.Fatalf("(%s) matched (%s) but shouldn't have", tst, tester)
 				}
 			})
 		}
 	}
 }
 
-func blankfilename(times ...time.Time) []singletest {
+func blanktime(dir bool, names ...string) []singletest {
+	out := make([]singletest, 0, len(names))
+	for _, name := range names {
+		out = append(out, singletest{filename: name, modified: time.Time{}, isdir: dir, size: 0})
+	}
+	return out
+}
+
+func blankname(dir bool, times ...time.Time) []singletest {
 	out := make([]singletest, 0, len(times))
 	for _, time := range times {
-		out = append(out, singletest{filename: "blank.txt", modified: time, isdir: false})
+		out = append(out, singletest{filename: "blank.txt", modified: time, isdir: dir, size: 0})
 	}
 	return out
 }
 
-func blankdirname(times ...time.Time) []singletest {
-	out := make([]singletest, 0, len(times))
-	for _, time := range times {
-		out = append(out, singletest{filename: "blank", modified: time, isdir: true})
-	}
-	return out
-}
-
-func blanktimefile(filenames ...string) []singletest {
-	out := make([]singletest, 0, len(filenames))
-	for _, filename := range filenames {
-		out = append(out, singletest{filename: filename, modified: time.Time{}, isdir: false})
-	}
-	return out
-}
-
-func blanktimedir(dirnames ...string) []singletest {
-	out := make([]singletest, 0, len(dirnames))
-	for _, dirname := range dirnames {
-		out = append(out, singletest{filename: dirname, modified: time.Time{}, isdir: true})
+func sizeonly(dir bool, sizes ...int64) []singletest {
+	out := make([]singletest, 0, len(sizes))
+	for _, size := range sizes {
+		out = append(out, singletest{filename: "blank", modified: time.Time{}, isdir: dir, size: size})
 	}
 	return out
 }
@@ -119,43 +116,43 @@ func TestFilterOn(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			on:   "2024-02-14",
-			good: blankfilename(time.Date(2024, 2, 14, 12, 0, 0, 0, time.Local)),
-			bad:  blankfilename(now, now.Add(time.Hour*72), now.Add(-time.Hour*18)),
+			good: blankname(false, time.Date(2024, 2, 14, 12, 0, 0, 0, time.Local)),
+			bad:  blankname(false, now, now.Add(time.Hour*72), now.Add(-time.Hour*18)),
 		},
 		{
 			on:   "yesterday",
-			good: blankfilename(yesterday),
-			bad:  blankfilename(now, oneweekago, onemonthago, oneyearago, twoweeksago, twomonthsago, twoyearsago),
+			good: blankname(false, yesterday),
+			bad:  blankname(false, now, oneweekago, onemonthago, oneyearago, twoweeksago, twomonthsago, twoyearsago),
 		},
 		{
 			on:   "one week ago",
-			good: blankfilename(oneweekago),
-			bad:  blankfilename(now),
+			good: blankname(false, oneweekago),
+			bad:  blankname(false, now),
 		},
 		{
 			on:   "one month ago",
-			good: blankfilename(onemonthago),
-			bad:  blankfilename(now),
+			good: blankname(false, onemonthago),
+			bad:  blankname(false, now),
 		},
 		{
 			on:   "two months ago",
-			good: blankfilename(twomonthsago),
-			bad:  blankfilename(now),
+			good: blankname(false, twomonthsago),
+			bad:  blankname(false, now),
 		},
 		{
 			on:   "four months ago",
-			good: blankfilename(fourmonthsago),
-			bad:  blankfilename(now),
+			good: blankname(false, fourmonthsago),
+			bad:  blankname(false, now),
 		},
 		{
 			on:   "one year ago",
-			good: blankfilename(oneyearago),
-			bad:  blankfilename(now),
+			good: blankname(false, oneyearago),
+			bad:  blankname(false, now),
 		},
 		{
 			on:   "four years ago",
-			good: blankfilename(fouryearsago),
-			bad:  blankfilename(now),
+			good: blankname(false, fouryearsago),
+			bad:  blankname(false, now),
 		},
 	})
 }
@@ -164,43 +161,43 @@ func TestFilterAfter(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			after: "2020-02-14",
-			good:  blankfilename(time.Date(2024, 3, 14, 12, 0, 0, 0, time.Local), now, yesterday),
-			bad:   blankfilename(time.Date(2018, 2, 14, 12, 0, 0, 0, time.Local)),
+			good:  blankname(false, time.Date(2024, 3, 14, 12, 0, 0, 0, time.Local), now, yesterday),
+			bad:   blankname(false, time.Date(2018, 2, 14, 12, 0, 0, 0, time.Local)),
 		},
 		{
 			after: "yesterday",
-			good:  blankfilename(yesterday, yesterday.AddDate(1, 0, 0), now, now.AddDate(0, 3, 0)),
-			bad:   blankfilename(yesterday.AddDate(-1, 0, 0), yesterday.AddDate(0, 0, -1), ereyesterday),
+			good:  blankname(false, yesterday, yesterday.AddDate(1, 0, 0), now, now.AddDate(0, 3, 0)),
+			bad:   blankname(false, yesterday.AddDate(-1, 0, 0), yesterday.AddDate(0, 0, -1), ereyesterday),
 		},
 		{
 			after: "one week ago",
-			good:  blankfilename(now),
-			bad:   blankfilename(oneweekago.AddDate(0, 0, -1)),
+			good:  blankname(false, now),
+			bad:   blankname(false, oneweekago.AddDate(0, 0, -1)),
 		},
 		{
 			after: "one month ago",
-			good:  blankfilename(now, oneweekago, twoweeksago),
-			bad:   blankfilename(onemonthago, twomonthsago, fourmonthsago, oneyearago),
+			good:  blankname(false, now, oneweekago, twoweeksago),
+			bad:   blankname(false, onemonthago, twomonthsago, fourmonthsago, oneyearago),
 		},
 		{
 			after: "two months ago",
-			good:  blankfilename(now, onemonthago, oneweekago),
-			bad:   blankfilename(twomonthsago, oneyearago, fourmonthsago),
+			good:  blankname(false, now, onemonthago, oneweekago),
+			bad:   blankname(false, twomonthsago, oneyearago, fourmonthsago),
 		},
 		{
 			after: "four months ago",
-			good:  blankfilename(now, oneweekago, onemonthago, twoweeksago, twomonthsago, onemonthago),
-			bad:   blankfilename(fourmonthsago, oneyearago),
+			good:  blankname(false, now, oneweekago, onemonthago, twoweeksago, twomonthsago, onemonthago),
+			bad:   blankname(false, fourmonthsago, oneyearago),
 		},
 		{
 			after: "one year ago",
-			good:  blankfilename(now, onemonthago, twomonthsago, fourmonthsago),
-			bad:   blankfilename(oneyearago, fouryearsago, twoyearsago),
+			good:  blankname(false, now, onemonthago, twomonthsago, fourmonthsago),
+			bad:   blankname(false, oneyearago, fouryearsago, twoyearsago),
 		},
 		{
 			after: "four years ago",
-			good:  blankfilename(now, twoyearsago, onemonthago, fourmonthsago),
-			bad:   blankfilename(fouryearsago, fouryearsago.AddDate(-1, 0, 0)),
+			good:  blankname(false, now, twoyearsago, onemonthago, fourmonthsago),
+			bad:   blankname(false, fouryearsago, fouryearsago.AddDate(-1, 0, 0)),
 		},
 	})
 }
@@ -209,43 +206,43 @@ func TestFilterBefore(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			before: "2024-02-14",
-			good:   blankfilename(time.Date(2020, 2, 14, 12, 0, 0, 0, time.Local), time.Date(1989, 8, 13, 18, 53, 0, 0, time.Local)),
-			bad:    blankfilename(now, now.AddDate(0, 0, 10), now.AddDate(0, -2, 0)),
+			good:   blankname(false, time.Date(2020, 2, 14, 12, 0, 0, 0, time.Local), time.Date(1989, 8, 13, 18, 53, 0, 0, time.Local)),
+			bad:    blankname(false, now, now.AddDate(0, 0, 10), now.AddDate(0, -2, 0)),
 		},
 		{
 			before: "yesterday",
-			good:   blankfilename(onemonthago, oneweekago, oneyearago),
-			bad:    blankfilename(now, now.AddDate(0, 0, 1)),
+			good:   blankname(false, onemonthago, oneweekago, oneyearago),
+			bad:    blankname(false, now, now.AddDate(0, 0, 1)),
 		},
 		{
 			before: "one week ago",
-			good:   blankfilename(onemonthago, oneyearago, twoweeksago),
-			bad:    blankfilename(yesterday, now),
+			good:   blankname(false, onemonthago, oneyearago, twoweeksago),
+			bad:    blankname(false, yesterday, now),
 		},
 		{
 			before: "one month ago",
-			good:   blankfilename(oneyearago, twomonthsago),
-			bad:    blankfilename(oneweekago, yesterday, now),
+			good:   blankname(false, oneyearago, twomonthsago),
+			bad:    blankname(false, oneweekago, yesterday, now),
 		},
 		{
 			before: "two months ago",
-			good:   blankfilename(fourmonthsago, oneyearago),
-			bad:    blankfilename(onemonthago, oneweekago, yesterday, now),
+			good:   blankname(false, fourmonthsago, oneyearago),
+			bad:    blankname(false, onemonthago, oneweekago, yesterday, now),
 		},
 		{
 			before: "four months ago",
-			good:   blankfilename(oneyearago, twoyearsago, fouryearsago),
-			bad:    blankfilename(twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:   blankname(false, oneyearago, twoyearsago, fouryearsago),
+			bad:    blankname(false, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 		{
 			before: "one year ago",
-			good:   blankfilename(twoyearsago, fouryearsago),
-			bad:    blankfilename(fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:   blankname(false, twoyearsago, fouryearsago),
+			bad:    blankname(false, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 		{
 			before: "four years ago",
-			good:   blankfilename(fouryearsago.AddDate(-1, 0, 0), fouryearsago.AddDate(-4, 0, 0)),
-			bad:    blankfilename(oneyearago, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:   blankname(false, fouryearsago.AddDate(-1, 0, 0), fouryearsago.AddDate(-4, 0, 0)),
+			bad:    blankname(false, oneyearago, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 	})
 }
@@ -254,13 +251,13 @@ func TestFilterMatch(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			pattern: "[Tt]est",
-			good:    blanktimefile("test", "Test"),
-			bad:     blanktimefile("TEST", "tEst", "tEST", "TEst"),
+			good:    blanktime(false, "test", "Test"),
+			bad:     blanktime(false, "TEST", "tEst", "tEST", "TEst"),
 		},
 		{
 			pattern: "^h.*o$",
-			good:    blanktimefile("hello", "hippo", "how about some pasta with alfredo"),
-			bad:     blanktimefile("hi", "test", "hellO", "Hello", "oh hello there"),
+			good:    blanktime(false, "hello", "hippo", "how about some pasta with alfredo"),
+			bad:     blanktime(false, "hi", "test", "hellO", "Hello", "oh hello there"),
 		},
 	})
 }
@@ -269,23 +266,23 @@ func TestFilterGlob(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			glob: "*.txt",
-			good: blanktimefile("test.txt", "alsotest.txt"),
-			bad:  blanktimefile("test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			good: blanktime(false, "test.txt", "alsotest.txt"),
+			bad:  blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
 		},
 		{
 			glob: "*.tar.*",
-			good: blanktimefile("test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
-			bad:  blanktimefile("test.tar", "test.txt", "test.targz", "test.tgz"),
+			good: blanktime(false, "test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
+			bad:  blanktime(false, "test.tar", "test.txt", "test.targz", "test.tgz"),
 		},
 		{
 			glob: "pot*o",
-			good: blanktimefile("potato", "potdonkeyo", "potesto"),
-			bad:  blanktimefile("salad", "test", "alsotest"),
+			good: blanktime(false, "potato", "potdonkeyo", "potesto"),
+			bad:  blanktime(false, "salad", "test", "alsotest"),
 		},
 		{
 			glob: "t?st",
-			good: blanktimefile("test", "tast", "tfst", "tnst"),
-			bad:  blanktimefile("best", "fast", "most", "past"),
+			good: blanktime(false, "test", "tast", "tfst", "tnst"),
+			bad:  blanktime(false, "best", "fast", "most", "past"),
 		},
 	})
 }
@@ -294,13 +291,13 @@ func TestFilterUnMatch(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			unpattern: "^ss_.*\\.zip",
-			good:      blanktimefile("hello.zip", "ss_potato.png", "sss.zip"),
-			bad:       blanktimefile("ss_ost_flac.zip", "ss_guide.zip", "ss_controls.zip"),
+			good:      blanktime(false, "hello.zip", "ss_potato.png", "sss.zip"),
+			bad:       blanktime(false, "ss_ost_flac.zip", "ss_guide.zip", "ss_controls.zip"),
 		},
 		{
 			unpattern: "^h.*o$",
-			good:      blanktimefile("hi", "test", "hellO", "Hello", "oh hello there"),
-			bad:       blanktimefile("hello", "hippo", "how about some pasta with alfredo"),
+			good:      blanktime(false, "hi", "test", "hellO", "Hello", "oh hello there"),
+			bad:       blanktime(false, "hello", "hippo", "how about some pasta with alfredo"),
 		},
 	})
 }
@@ -309,23 +306,23 @@ func TestFilterUnGlob(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			unglob: "*.txt",
-			good:   blanktimefile("test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
-			bad:    blanktimefile("test.txt", "alsotest.txt"),
+			good:   blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			bad:    blanktime(false, "test.txt", "alsotest.txt"),
 		},
 		{
 			unglob: "*.tar.*",
-			good:   blanktimefile("test.tar", "test.txt", "test.targz", "test.tgz"),
-			bad:    blanktimefile("test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
+			good:   blanktime(false, "test.tar", "test.txt", "test.targz", "test.tgz"),
+			bad:    blanktime(false, "test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
 		},
 		{
 			unglob: "pot*o",
-			good:   blanktimefile("salad", "test", "alsotest"),
-			bad:    blanktimefile("potato", "potdonkeyo", "potesto"),
+			good:   blanktime(false, "salad", "test", "alsotest"),
+			bad:    blanktime(false, "potato", "potdonkeyo", "potesto"),
 		},
 		{
 			unglob: "t?st",
-			good:   blanktimefile("best", "fast", "most", "past"),
-			bad:    blanktimefile("test", "tast", "tfst", "tnst"),
+			good:   blanktime(false, "best", "fast", "most", "past"),
+			bad:    blanktime(false, "test", "tast", "tfst", "tnst"),
 		},
 	})
 }
@@ -334,18 +331,18 @@ func TestFilterFilenames(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			filenames: []string{"test.txt", "alsotest.txt"},
-			good:      blanktimefile("test.txt", "alsotest.txt"),
-			bad:       blanktimefile("test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			good:      blanktime(false, "test.txt", "alsotest.txt"),
+			bad:       blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
 		},
 		{
 			filenames: []string{"test.md", "test.txt"},
-			good:      blanktimefile("test.txt", "test.md"),
-			bad:       blanktimefile("alsotest.txt", "test.go", "test.tar.gz", "testxt", "test.text"),
+			good:      blanktime(false, "test.txt", "test.md"),
+			bad:       blanktime(false, "alsotest.txt", "test.go", "test.tar.gz", "testxt", "test.text"),
 		},
 		{
 			filenames: []string{"hello.world"},
-			good:      blanktimefile("hello.world"),
-			bad:       blanktimefile("test.md", "test.go", "test.tar.gz", "testxt", "test.text", "helloworld", "Hello.world"),
+			good:      blanktime(false, "hello.world"),
+			bad:       blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text", "helloworld", "Hello.world"),
 		},
 	})
 }
@@ -354,8 +351,8 @@ func TestFilterFilesOnly(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			filesonly: true,
-			good:      blanktimefile("test", "hellowold.txt", "test.md", "test.jpg"),
-			bad:       blanktimedir("test", "alsotest", "helloworld"),
+			good:      blanktime(false, "test", "hellowold.txt", "test.md", "test.jpg"),
+			bad:       blanktime(true, "test", "alsotest", "helloworld"),
 		},
 	})
 }
@@ -364,13 +361,13 @@ func TestFilterDirsOnly(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			dirsonly: true,
-			good:     blanktimedir("test", "alsotest", "helloworld"),
-			bad:      blanktimefile("test", "hellowold.txt", "test.md", "test.jpg"),
+			good:     blanktime(true, "test", "alsotest", "helloworld"),
+			bad:      blanktime(false, "test", "hellowold.txt", "test.md", "test.jpg"),
 		},
 		{
 			dirsonly: true,
-			good:     blankdirname(fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
-			bad:      blankfilename(fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:     blankname(true, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			bad:      blankname(false, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 	})
 }
@@ -379,12 +376,27 @@ func TestFilterShowHidden(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			showhidden: false,
-			good:       append(blanktimedir("test", "alsotest", "helloworld"), blanktimefile("test", "alsotest", "helloworld")...),
-			bad:        append(blanktimedir(".test", ".alsotest", ".helloworld"), blanktimefile(".test", ".alsotest", ".helloworld")...),
+			good:       append(blanktime(true, "test", "alsotest", "helloworld"), blanktime(false, "test", "alsotest", "helloworld")...),
+			bad:        append(blanktime(true, ".test", ".alsotest", ".helloworld"), blanktime(false, ".test", ".alsotest", ".helloworld")...),
 		},
 		{
 			showhidden: true,
-			good:       append(blanktimedir("test", "alsotest", ".helloworld"), blanktimefile("test", "alsotest", ".helloworld")...),
+			good:       append(blanktime(true, "test", "alsotest", ".helloworld"), blanktime(false, "test", "alsotest", ".helloworld")...),
+		},
+	})
+}
+
+func TestFilesize(t *testing.T) {
+	testmatch(t, []testholder{
+		{
+			minsize: "9001B",
+			good:    sizeonly(false, 10000, 9002, 424242, math.MaxInt64),
+			bad:     sizeonly(false, 9000, math.MinInt64, 0, -9001),
+		},
+		{
+			maxsize: "9001B",
+			good:    sizeonly(false, 9000, math.MinInt64, 0, -9001),
+			bad:     sizeonly(false, 10000, 9002, 424242, math.MaxInt64),
 		},
 	})
 }
@@ -432,8 +444,8 @@ func TestFilterMultipleParameters(t *testing.T) {
 			on:     "today",
 			after:  "two weeks ago",
 			before: "one week ago",
-			good:   blankfilename(now, twoam, sevenam, threepm, tenpm),
-			bad:    blankfilename(yesterday, oneweekago, onemonthago, oneyearago),
+			good:   blankname(false, now, twoam, sevenam, threepm, tenpm),
+			bad:    blankname(false, yesterday, oneweekago, onemonthago, oneyearago),
 		},
 		{
 			unpattern: ".*\\.(jpg|png)",
@@ -451,7 +463,7 @@ func TestFilterMultipleParameters(t *testing.T) {
 		{
 			filesonly: true,
 			unglob:    "*.txt",
-			good:      blanktimefile("test.md", "test.jpg", "test.png"),
+			good:      blanktime(false, "test.md", "test.jpg", "test.png"),
 			bad: []singletest{
 				{
 					filename: "test",
@@ -470,7 +482,7 @@ func TestFilterMultipleParameters(t *testing.T) {
 		{
 			dirsonly: true,
 			pattern:  "w(or|ea)ld",
-			good:     blanktimedir("hello world", "high weald"),
+			good:     blanktime(true, "hello world", "high weald"),
 			bad: []singletest{
 				{
 					filename: "hello_world.txt",
@@ -482,13 +494,37 @@ func TestFilterMultipleParameters(t *testing.T) {
 				},
 			},
 		},
+		{
+			glob:    "*.txt",
+			minsize: "4096B",
+			good: []singletest{
+				{
+					filename: "test.txt",
+					size:     9001,
+				},
+				{
+					filename: "hello.txt",
+					size:     4097,
+				},
+			},
+			bad: []singletest{
+				{
+					filename: "test.md",
+					size:     9001,
+				},
+				{
+					filename: "test.txt",
+					size:     1024,
+				},
+			},
+		},
 	})
 }
 
 func TestFilterBlank(t *testing.T) {
 	var f *Filter
 	t.Run("new", func(t *testing.T) {
-		f, _ = New("", "", "", "", "", "", "", false, false, false)
+		f, _ = New("", "", "", "", "", "", "", false, false, false, "0", "0")
 		if !f.Blank() {
 			t.Fatalf("filter isn't blank? %s", f)
 		}
@@ -547,7 +583,8 @@ func TestFilterNotBlank(t *testing.T) {
 		t.Run("notblank"+tester.String(), func(t *testing.T) {
 			f, _ = New(
 				tester.on, tester.before, tester.after, tester.glob, tester.pattern,
-				tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly, tester.showhidden,
+				tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
+				tester.showhidden, tester.minsize, tester.maxsize,
 				tester.filenames...,
 			)
 			if f.Blank() {

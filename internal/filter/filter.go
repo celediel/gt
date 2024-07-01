@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
+	"github.com/dustin/go-humanize"
 	"github.com/ijt/go-anytime"
 )
 
@@ -21,6 +23,7 @@ type Filter struct {
 	showhidden          bool
 	matcher             *regexp.Regexp
 	unmatcher           *regexp.Regexp
+	minsize, maxsize    int64
 }
 
 func (f *Filter) On() time.Time       { return f.on }
@@ -32,6 +35,8 @@ func (f *Filter) FileNames() []string { return f.filenames }
 func (f *Filter) FilesOnly() bool     { return f.filesonly }
 func (f *Filter) DirsOnly() bool      { return f.dirsonly }
 func (f *Filter) ShowHidden() bool    { return f.showhidden }
+func (f *Filter) MinSize() int64      { return f.minsize }
+func (f *Filter) MaxSize() int64      { return f.maxsize }
 
 func (f *Filter) AddFileName(filename string) {
 	filename = filepath.Clean(filename)
@@ -44,7 +49,7 @@ func (f *Filter) AddFileNames(filenames ...string) {
 	}
 }
 
-func (f *Filter) Match(filename string, modified time.Time, isdir bool) bool {
+func (f *Filter) Match(filename string, modified time.Time, size int64, isdir bool) bool {
 	// this might be unnessary but w/e
 	filename = filepath.Clean(filename)
 
@@ -98,6 +103,14 @@ func (f *Filter) Match(filename string, modified time.Time, isdir bool) bool {
 		return false
 	}
 
+	if f.maxsize != 0 && f.maxsize < size {
+		return false
+	}
+
+	if f.minsize != 0 && f.minsize > size {
+		return false
+	}
+
 	// okay it was good
 	return true
 }
@@ -128,7 +141,9 @@ func (f *Filter) Blank() bool {
 		len(f.filenames) == 0 &&
 		!f.showhidden &&
 		!f.filesonly &&
-		!f.dirsonly
+		!f.dirsonly &&
+		f.minsize == 0 &&
+		f.maxsize == 0
 }
 
 func (f *Filter) String() string {
@@ -164,7 +179,7 @@ func (f *Filter) has_unregex() bool {
 	return f.unmatcher.String() != ""
 }
 
-func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, showhidden bool, names ...string) (*Filter, error) {
+func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, showhidden bool, minsize, maxsize string, names ...string) (*Filter, error) {
 	var (
 		err error
 		now = time.Now()
@@ -211,6 +226,22 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 	err = f.SetUnPattern(unpattern)
 	if err != nil {
 		return nil, err
+	}
+
+	if minsize != "" {
+		m, e := humanize.ParseBytes(minsize)
+		if e != nil {
+			log.Errorf("invalid input size '%s'", minsize)
+		}
+		f.minsize = int64(m)
+	}
+
+	if maxsize != "" {
+		m, e := humanize.ParseBytes(maxsize)
+		if e != nil {
+			log.Errorf("invalid input size '%s'", maxsize)
+		}
+		f.maxsize = int64(m)
 	}
 
 	return f, nil

@@ -33,6 +33,7 @@ var (
 	loglvl         string
 	f              *filter.Filter
 	o, b, a, g, p  string
+	sm, lg         string
 	ung, unp       string
 	fo, do, sh     bool
 	askconfirm     bool
@@ -91,7 +92,7 @@ var (
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh, sm, lg)
 		}
 		if err != nil {
 			return err
@@ -115,7 +116,7 @@ var (
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, true, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, true, sm, lg, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -123,7 +124,7 @@ var (
 
 	beforeTrash = func(_ *cli.Context) (err error) {
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh, sm, lg)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -362,6 +363,18 @@ var (
 			Aliases:            []string{"D"},
 			DisableDefaultText: true,
 			Destination:        &do,
+		},
+		&cli.StringFlag{
+			Name:        "min-size",
+			Usage:       "operate on files larger than `SIZE`",
+			Aliases:     []string{"N"},
+			Destination: &sm,
+		},
+		&cli.StringFlag{
+			Name:        "max-size",
+			Usage:       "operate on files smaller than `SIZE`",
+			Aliases:     []string{"X"},
+			Destination: &lg,
 		},
 	}
 

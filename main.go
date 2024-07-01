@@ -115,7 +115,7 @@ var (
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, true, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -363,13 +363,6 @@ var (
 			DisableDefaultText: true,
 			Destination:        &do,
 		},
-		&cli.BoolFlag{
-			Name:               "hidden",
-			Usage:              "operate on hidden files",
-			Aliases:            []string{"H"},
-			DisableDefaultText: true,
-			Destination:        &sh,
-		},
 	}
 
 	trashFlags = []cli.Flag{
@@ -386,6 +379,13 @@ var (
 			Usage:       "operate on files in this `DIRECTORY`",
 			Aliases:     []string{"w"},
 			Destination: &workdir,
+		},
+		&cli.BoolFlag{
+			Name:               "hidden",
+			Usage:              "operate on hidden files",
+			Aliases:            []string{"H"},
+			DisableDefaultText: true,
+			Destination:        &sh,
 		},
 	}
 

@@ -55,6 +55,7 @@ type model struct {
 	readonly   bool
 	termheight int
 	mode       modes.Mode
+	subtitle   string
 }
 
 // TODO: reconcile trash.Info and files.File into an interface so I can shorten this up
@@ -134,6 +135,7 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 			readonly: readonly,
 			mode:     modes.Trashing,
 			selected: map[int]bool{},
+			subtitle: workdir,
 		}
 	)
 
@@ -339,6 +341,9 @@ func (m model) header() string {
 		mode = strings.Join(keys, wide_dot)
 	default:
 		mode = m.mode.String()
+		if m.subtitle != "" {
+			mode += fmt.Sprintf(" in %s ", dirs.UnExpand(m.subtitle, ""))
+		}
 	}
 	mode += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
 

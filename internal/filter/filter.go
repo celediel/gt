@@ -47,6 +47,7 @@ func (f *Filter) AddFileNames(filenames ...string) {
 func (f *Filter) Match(filename string, modified time.Time, isdir bool) bool {
 	// this might be unnessary but w/e
 	filename = filepath.Clean(filename)
+
 	// on or before/after, not both
 	if !f.on.IsZero() {
 		if !same_day(f.on, modified) {
@@ -60,34 +61,43 @@ func (f *Filter) Match(filename string, modified time.Time, isdir bool) bool {
 			return false
 		}
 	}
+
 	if f.has_regex() && !f.matcher.MatchString(filename) {
 		return false
 	}
+
 	if f.glob != "" {
 		if match, err := filepath.Match(f.glob, filename); err != nil || !match {
 			return false
 		}
 	}
+
 	if f.has_unregex() && f.unmatcher.MatchString(filename) {
 		return false
 	}
+
 	if f.unglob != "" {
 		if match, err := filepath.Match(f.unglob, filename); err != nil || match {
 			return false
 		}
 	}
+
 	if len(f.filenames) > 0 && !slices.Contains(f.filenames, filename) {
 		return false
 	}
+
 	if f.filesonly && isdir {
 		return false
 	}
+
 	if f.dirsonly && !isdir {
 		return false
 	}
+
 	if !f.showhidden && strings.HasPrefix(filename, ".") {
 		return false
 	}
+
 	// okay it was good
 	return true
 }

@@ -92,7 +92,7 @@ var (
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh, sm, lg)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, true, sm, lg)
 		}
 		if err != nil {
 			return err

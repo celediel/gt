@@ -105,7 +105,7 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 			return nil
 		}
 
-		if is_in_recursive_dir(dir, path) && f.ShowHidden() {
+		if is_in_recursive_dir(dir, path) && !f.ShowHidden() {
 			return nil
 		}
 

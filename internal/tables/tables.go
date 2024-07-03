@@ -99,7 +99,7 @@ func newModel(fs []files.File, width, height int, readonly, preselected bool, wo
 
 	m.table = createTable(columns, rows, theight, m.readonlyOnePage())
 
-	m.sorting = sorting.Size
+	m.sorting = sorting.Name
 	m.sort()
 
 	return m

@@ -92,7 +92,7 @@ var (
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, true, sm, lg)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg)
 		}
 		if err != nil {
 			return err
@@ -116,7 +116,7 @@ var (
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, true, sm, lg, ctx.Args().Slice()...)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -124,7 +124,7 @@ var (
 
 	beforeTrash = func(_ *cli.Context) (err error) {
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, sh, sm, lg)
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, !sh, sm, lg)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -200,6 +200,7 @@ var (
 			fls, err := trash.FindFiles(trashDir, ogdir, f)
 
 			var msg string
+			log.Debugf("filter '%s' is blark? %t in %s", f, f.Blank(), ogdir)
 			if f.Blank() && ogdir == "" {
 				msg = "trash is empty"
 			} else {

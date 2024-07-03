@@ -27,7 +27,7 @@ type testholder struct {
 	before, after, on   string
 	filenames           []string
 	filesonly, dirsonly bool
-	showhidden          bool
+	ignorehidden        bool
 	good, bad           []singletest
 	minsize, maxsize    string
 }
@@ -38,7 +38,7 @@ func (t testholder) String() string {
 			"before:'%s' after:'%s' on:'%s' filesonly:'%t' dirsonly:'%t' "+
 			"showhidden:'%t' minsize:'%s' maxsize:'%s'",
 		t.pattern, t.glob, t.unpattern, t.unglob, t.filenames, t.before, t.after, t.on,
-		t.filesonly, t.dirsonly, t.showhidden, t.minsize, t.maxsize,
+		t.filesonly, t.dirsonly, t.ignorehidden, t.minsize, t.maxsize,
 	)
 }
 
@@ -63,7 +63,7 @@ func testmatch(t *testing.T, testers []testholder) {
 		f, err = New(
 			tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 			tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
-			tester.showhidden, tester.minsize, tester.maxsize,
+			tester.ignorehidden, tester.minsize, tester.maxsize,
 			tester.filenames...,
 		)
 		if err != nil {
@@ -375,13 +375,13 @@ func TestFilterDirsOnly(t *testing.T) {
 func TestFilterShowHidden(t *testing.T) {
 	testmatch(t, []testholder{
 		{
-			showhidden: false,
-			good:       append(blanktime(true, "test", "alsotest", "helloworld"), blanktime(false, "test", "alsotest", "helloworld")...),
-			bad:        append(blanktime(true, ".test", ".alsotest", ".helloworld"), blanktime(false, ".test", ".alsotest", ".helloworld")...),
+			ignorehidden: true,
+			good:         append(blanktime(true, "test", "alsotest", "helloworld"), blanktime(false, "test", "alsotest", "helloworld")...),
+			bad:          append(blanktime(true, ".test", ".alsotest", ".helloworld"), blanktime(false, ".test", ".alsotest", ".helloworld")...),
 		},
 		{
-			showhidden: true,
-			good:       append(blanktime(true, "test", "alsotest", ".helloworld"), blanktime(false, "test", "alsotest", ".helloworld")...),
+			ignorehidden: false,
+			good:         append(blanktime(true, "test", "alsotest", ".helloworld"), blanktime(false, "test", "alsotest", ".helloworld")...),
 		},
 	})
 }
@@ -574,7 +574,7 @@ func TestFilterNotBlank(t *testing.T) {
 				dirsonly: true,
 			},
 			{
-				showhidden: true,
+				ignorehidden: true,
 			},
 		}
 	)
@@ -584,7 +584,7 @@ func TestFilterNotBlank(t *testing.T) {
 			f, _ = New(
 				tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 				tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
-				tester.showhidden, tester.minsize, tester.maxsize,
+				tester.ignorehidden, tester.minsize, tester.maxsize,
 				tester.filenames...,
 			)
 			if f.Blank() {

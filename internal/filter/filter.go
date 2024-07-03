@@ -20,7 +20,7 @@ type Filter struct {
 	unglob, unpattern   string
 	filenames           []string
 	dirsonly, filesonly bool
-	showhidden          bool
+	ignorehidden        bool
 	matcher             *regexp.Regexp
 	unmatcher           *regexp.Regexp
 	minsize, maxsize    int64
@@ -34,7 +34,7 @@ func (f *Filter) Pattern() string     { return f.pattern }
 func (f *Filter) FileNames() []string { return f.filenames }
 func (f *Filter) FilesOnly() bool     { return f.filesonly }
 func (f *Filter) DirsOnly() bool      { return f.dirsonly }
-func (f *Filter) ShowHidden() bool    { return f.showhidden }
+func (f *Filter) IgnoreHidden() bool  { return f.ignorehidden }
 func (f *Filter) MinSize() int64      { return f.minsize }
 func (f *Filter) MaxSize() int64      { return f.maxsize }
 
@@ -99,7 +99,7 @@ func (f *Filter) Match(filename string, modified time.Time, size int64, isdir bo
 		return false
 	}
 
-	if !f.showhidden && strings.HasPrefix(filename, ".") {
+	if f.ignorehidden && strings.HasPrefix(filename, ".") {
 		return false
 	}
 
@@ -139,7 +139,7 @@ func (f *Filter) Blank() bool {
 		f.before.Equal(t) &&
 		f.on.Equal(t) &&
 		len(f.filenames) == 0 &&
-		!f.showhidden &&
+		!f.ignorehidden &&
 		!f.filesonly &&
 		!f.dirsonly &&
 		f.minsize == 0 &&
@@ -161,7 +161,7 @@ func (f *Filter) String() string {
 		f.unglob, unm,
 		f.filenames,
 		f.filesonly, f.dirsonly,
-		f.showhidden,
+		f.ignorehidden,
 	)
 }
 
@@ -179,18 +179,18 @@ func (f *Filter) has_unregex() bool {
 	return f.unmatcher.String() != ""
 }
 
-func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, showhidden bool, minsize, maxsize string, names ...string) (*Filter, error) {
+func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, ignorehidden bool, minsize, maxsize string, names ...string) (*Filter, error) {
 	var (
 		err error
 		now = time.Now()
 	)
 
 	f := &Filter{
-		glob:       glob,
-		unglob:     unglob,
-		filesonly:  filesonly,
-		dirsonly:   dirsonly,
-		showhidden: showhidden,
+		glob:         glob,
+		unglob:       unglob,
+		filesonly:    filesonly,
+		dirsonly:     dirsonly,
+		ignorehidden: ignorehidden,
 	}
 
 	f.AddFileNames(names...)

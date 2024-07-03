@@ -1,6 +1,4 @@
-// Package trash finds and displays files located in the trash, and moves
-// files into the trash, creating cooresponding .trashinfo files
-package trash
+package files
 
 import (
 	"fmt"
@@ -14,6 +12,7 @@ import (
 	"git.burning.moe/celediel/gt/internal/dirs"
 	"git.burning.moe/celediel/gt/internal/filter"
 	"git.burning.moe/celediel/gt/internal/prompt"
+
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
 	"github.com/dustin/go-humanize"
@@ -34,7 +33,7 @@ DeletionDate={date}
 `
 )
 
-type Info struct {
+type TrashInfo struct {
 	name, ogpath    string
 	path, trashinfo string
 	isdir           bool
@@ -42,17 +41,15 @@ type Info struct {
 	filesize        int64
 }
 
-type Infos []Info
+func (t TrashInfo) Name() string      { return t.name }
+func (t TrashInfo) TrashPath() string { return t.path }
+func (t TrashInfo) Path() string      { return t.ogpath }
+func (t TrashInfo) TrashInfo() string { return t.trashinfo }
+func (t TrashInfo) Date() time.Time   { return t.trashed }
+func (t TrashInfo) Filesize() int64   { return t.filesize }
+func (t TrashInfo) IsDir() bool       { return t.isdir }
 
-func (i Info) Name() string       { return i.name }
-func (i Info) Path() string       { return i.path }
-func (i Info) OGPath() string     { return i.ogpath }
-func (i Info) TrashInfo() string  { return i.trashinfo }
-func (i Info) Trashed() time.Time { return i.trashed }
-func (i Info) Filesize() int64    { return i.filesize }
-func (i Info) IsDir() bool        { return i.isdir }
-
-func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr error) {
+func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr error) {
 	outerr = filepath.WalkDir(trashdir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			log.Debugf("what happened?? what is %s?", err)
@@ -91,7 +88,7 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 
 			if f.Match(filename, date, info.Size(), info.IsDir()) {
 				log.Debugf("%s: deleted on %s", filename, date.Format(trash_info_date_fmt))
-				files = append(files, Info{
+				files = append(files, TrashInfo{
 					name:      filename,
 					path:      trashedpath,
 					ogpath:    basepath,
@@ -108,13 +105,18 @@ func FindFiles(trashdir, ogdir string, f *filter.Filter) (files Infos, outerr er
 		return nil
 	})
 	if outerr != nil {
-		return []Info{}, outerr
+		return Files{}, outerr
 	}
 	return
 }
 
-func Restore(files []Info) (restored int, err error) {
-	for _, file := range files {
+func Restore(files Files) (restored int, err error) {
+	for _, maybeFile := range files {
+		file, ok := maybeFile.(TrashInfo)
+		if !ok {
+			return restored, fmt.Errorf("bad file?? %s", maybeFile.Name())
+		}
+
 		var outpath string = dirs.UnEscape(file.ogpath)
 		var cancel bool
 		log.Infof("restoring %s back to %s\n", file.name, outpath)
@@ -135,8 +137,13 @@ func Restore(files []Info) (restored int, err error) {
 	return restored, err
 }
 
-func Remove(files []Info) (removed int, err error) {
-	for _, file := range files {
+func Remove(files Files) (removed int, err error) {
+	for _, maybeFile := range files {
+		file, ok := maybeFile.(TrashInfo)
+		if !ok {
+			return removed, fmt.Errorf("bad file?? %s", maybeFile.Name())
+		}
+
 		log.Infof("removing %s permanently forever!!!", file.name)
 		if err = os.Remove(file.path); err != nil {
 			if i, e := os.Stat(file.path); e == nil && i.IsDir() {
@@ -189,46 +196,6 @@ func TrashFiles(trashDir string, files ...string) (trashed int, err error) {
 		trashed++
 	}
 	return trashed, err
-}
-
-func SortByTrashed(a, b Info) int {
-	if a.trashed.After(b.trashed) {
-		return 1
-	} else if a.trashed.Before(b.trashed) {
-		return -1
-	} else {
-		return 0
-	}
-}
-
-func SortByTrashedReverse(a, b Info) int {
-	if a.trashed.Before(b.trashed) {
-		return 1
-	} else if a.trashed.After(b.trashed) {
-		return -1
-	} else {
-		return 0
-	}
-}
-
-func SortBySize(a, b Info) int {
-	if a.filesize > b.filesize {
-		return 1
-	} else if a.filesize < b.filesize {
-		return -1
-	} else {
-		return 0
-	}
-}
-
-func SortBySizeReverse(a, b Info) int {
-	if a.filesize < b.filesize {
-		return 1
-	} else if a.filesize > b.filesize {
-		return -1
-	} else {
-		return 0
-	}
 }
 
 func randomFilename(length int) string {

@@ -10,10 +10,9 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/filter"
-	"git.burning.moe/celediel/gt/internal/modes"
 	"git.burning.moe/celediel/gt/internal/prompt"
 	"git.burning.moe/celediel/gt/internal/tables"
-	"git.burning.moe/celediel/gt/internal/trash"
+	"git.burning.moe/celediel/gt/internal/tables/modes"
 
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
@@ -101,7 +100,7 @@ var (
 		if len(ctx.Args().Slice()) != 0 {
 			var files_to_trash files.Files
 			for _, arg := range ctx.Args().Slice() {
-				file, e := files.New(arg)
+				file, e := files.NewDisk(arg)
 				if e != nil {
 					log.Fatalf("cannot trash '%s': No such file or directory", arg)
 				}
@@ -144,7 +143,7 @@ var (
 			var files_to_trash files.Files
 			var selectall bool
 			for _, arg := range ctx.Args().Slice() {
-				file, e := files.New(arg)
+				file, e := files.NewDisk(arg)
 				if e != nil {
 					log.Debugf("%s wasn't really a file", arg)
 					f.AddFileName(arg)
@@ -156,7 +155,7 @@ var (
 
 			// if none of the args were files, then process find files based on filter
 			if len(files_to_trash) == 0 {
-				fls, err := files.Find(workdir, recursive, f)
+				fls, err := files.FindDisk(workdir, recursive, f)
 				if err != nil {
 					return err
 				}
@@ -168,8 +167,7 @@ var (
 				selectall = !f.Blank()
 			}
 
-			log.Debugf("what is workdir? it's %s", workdir)
-			indices, err := tables.FilesTable(files_to_trash, termwidth, termheight, false, selectall, workdir)
+			indices, _, err := tables.Show(files_to_trash, termwidth, termheight, false, selectall, workdir, modes.Trashing)
 			if err != nil {
 				return err
 			}
@@ -197,7 +195,8 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			fls, err := trash.FindFiles(trashDir, ogdir, f)
+			// fls, err := trash.FindFiles(trashDir, ogdir, f)
+			fls, err := files.FindTrash(trashDir, ogdir, f)
 
 			var msg string
 			log.Debugf("filter '%s' is blark? %t in %s", f, f.Blank(), ogdir)
@@ -215,7 +214,7 @@ var (
 			}
 
 			// display them
-			_, _, err = tables.InfoTable(fls, termwidth, termheight, true, false, modes.Listing)
+			_, _, err = tables.Show(fls, termwidth, termheight, true, false, workdir, modes.Listing)
 
 			return err
 		},
@@ -231,7 +230,7 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			fls, err := trash.FindFiles(trashDir, ogdir, f)
+			fls, err := files.FindTrash(trashDir, ogdir, f)
 			if len(fls) == 0 {
 				fmt.Println("no files to restore")
 				return nil
@@ -239,12 +238,12 @@ var (
 				return err
 			}
 
-			indices, _, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank(), modes.Restoring)
+			indices, _, err := tables.Show(fls, termwidth, termheight, false, !f.Blank(), workdir, modes.Restoring)
 			if err != nil {
 				return err
 			}
 
-			var selected trash.Infos
+			var selected files.Files
 			for _, i := range indices {
 				selected = append(selected, fls[i])
 			}
@@ -264,7 +263,7 @@ var (
 		Flags:   slices.Concat(alreadyintrashFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(ctx *cli.Context) error {
-			fls, err := trash.FindFiles(trashDir, ogdir, f)
+			fls, err := files.FindTrash(trashDir, ogdir, f)
 			if len(fls) == 0 {
 				fmt.Println("no files to clean")
 				return nil
@@ -272,12 +271,12 @@ var (
 				return err
 			}
 
-			indices, _, err := tables.InfoTable(fls, termwidth, termheight, false, !f.Blank(), modes.Cleaning)
+			indices, _, err := tables.Show(fls, termwidth, termheight, false, !f.Blank(), workdir, modes.Cleaning)
 			if err != nil {
 				return err
 			}
 
-			var selected trash.Infos
+			var selected files.Files
 			for _, i := range indices {
 				selected = append(selected, fls[i])
 			}
@@ -434,13 +433,13 @@ func main() {
 
 func interactiveMode() error {
 	var (
-		fls      trash.Infos
+		fls      files.Files
 		indicies []int
 		mode     modes.Mode
 		err      error
 	)
 
-	fls, err = trash.FindFiles(trashDir, ogdir, f)
+	fls, err = files.FindTrash(trashDir, ogdir, f)
 	if err != nil {
 		return err
 	}
@@ -456,12 +455,12 @@ func interactiveMode() error {
 		return nil
 	}
 
-	indicies, mode, err = tables.InfoTable(fls, termwidth, termheight, false, false, modes.Interactive)
+	indicies, mode, err = tables.Show(fls, termwidth, termheight, false, false, workdir, modes.Interactive)
 	if err != nil {
 		return err
 	}
 
-	var selected trash.Infos
+	var selected files.Files
 	for _, i := range indicies {
 		selected = append(selected, fls[i])
 	}
@@ -489,10 +488,10 @@ func interactiveMode() error {
 	return nil
 }
 
-func confirmRestore(is trash.Infos) error {
-	if !askconfirm || prompt.YesNo(fmt.Sprintf("restore %d selected files?", len(is))) {
+func confirmRestore(fs files.Files) error {
+	if !askconfirm || prompt.YesNo(fmt.Sprintf("restore %d selected files?", len(fs))) {
 		log.Info("doing the thing")
-		restored, err := trash.Restore(is)
+		restored, err := files.Restore(fs)
 		if err != nil {
 			return fmt.Errorf("restored %d files before error %s", restored, err)
 		}
@@ -503,11 +502,11 @@ func confirmRestore(is trash.Infos) error {
 	return nil
 }
 
-func confirmClean(is trash.Infos) error {
-	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(is))) &&
-		(!askconfirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(is)))) {
+func confirmClean(fs files.Files) error {
+	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(fs))) &&
+		(!askconfirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(fs)))) {
 		log.Info("gonna remove some files forever")
-		removed, err := trash.Remove(is)
+		removed, err := files.Remove(fs)
 		if err != nil {
 			return fmt.Errorf("removed %d files before error %s", removed, err)
 		}
@@ -522,11 +521,11 @@ func confirmTrash(fs files.Files) error {
 	if !askconfirm || prompt.YesNo(fmt.Sprintf("trash %d selected files?", len(fs))) {
 		tfs := make([]string, 0, len(fs))
 		for _, file := range fs {
-			log.Debugf("gonna trash %s", file.Filename())
-			tfs = append(tfs, file.Filename())
+			log.Debugf("gonna trash %s", file.Path())
+			tfs = append(tfs, file.Path())
 		}
 
-		trashed, err := trash.TrashFiles(trashDir, tfs...)
+		trashed, err := files.TrashFiles(trashDir, tfs...)
 		if err != nil {
 			return err
 		}

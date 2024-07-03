@@ -9,8 +9,9 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/dirs"
 	"git.burning.moe/celediel/gt/internal/files"
-	"git.burning.moe/celediel/gt/internal/modes"
-	"git.burning.moe/celediel/gt/internal/trash"
+	"git.burning.moe/celediel/gt/internal/tables/modes"
+	"git.burning.moe/celediel/gt/internal/tables/sorting"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -49,79 +50,19 @@ var (
 )
 
 type model struct {
-	table      table.Model
-	keys       keyMap
-	selected   map[int]bool
-	readonly   bool
-	termheight int
-	mode       modes.Mode
-	subtitle   string
+	table       table.Model
+	keys        keyMap
+	selected    map[int]bool
+	readonly    bool
+	preselected bool
+	termheight  int
+	mode        modes.Mode
+	sorting     sorting.Sorting
+	workdir     string
+	files       files.Files
 }
 
-// TODO: reconcile trash.Info and files.File into an interface so I can shorten this up
-
-func newInfosModel(is trash.Infos, width, height int, readonly, preselected bool, mode modes.Mode) model {
-	var (
-		fwidth  int = int(math.Round(float64(width-woffset) * 0.4))
-		owidth  int = int(math.Round(float64(width-woffset) * 0.2))
-		dwidth  int = int(math.Round(float64(width-woffset) * 0.25))
-		swidth  int = int(math.Round(float64(width-woffset) * 0.12))
-		cwidth  int = int(math.Round(float64(width-woffset) * 0.03))
-		theight int = min(height-hoffset, len(is))
-
-		m = model{
-			keys:       defaultKeyMap(),
-			readonly:   readonly,
-			termheight: height,
-			mode:       mode,
-			selected:   map[int]bool{},
-		}
-	)
-	slices.SortStableFunc(is, trash.SortByTrashedReverse)
-
-	rows := []table.Row{}
-	for j, i := range is {
-		var t, b string
-		t = humanize.Time(i.Trashed())
-		if i.IsDir() {
-			b = strings.Repeat("─", 3)
-		} else {
-			b = humanize.Bytes(uint64(i.Filesize()))
-		}
-		r := table.Row{
-			dirs.UnEscape(i.Name()),
-			dirs.UnExpand(filepath.Dir(i.OGPath()), ""),
-			t,
-			b,
-		}
-
-		if !m.readonly {
-			r = append(r, getCheck(preselected))
-		}
-		if preselected {
-			m.selected[j] = true
-		}
-		rows = append(rows, r)
-	}
-
-	columns := []table.Column{
-		{Title: "filename", Width: fwidth},
-		{Title: "original path", Width: owidth},
-		{Title: "deleted", Width: dwidth},
-		{Title: "size", Width: swidth},
-	}
-	if !m.readonly {
-		columns = append(columns, table.Column{Title: uncheck, Width: cwidth})
-	} else {
-		columns[0].Width += cwidth
-	}
-
-	m.table = createTable(columns, rows, theight, m.readonlyOnePage())
-
-	return m
-}
-
-func newFilesModel(fs files.Files, width, height int, readonly, preselected bool, workdir string) model {
+func newModel(fs []files.File, width, height int, readonly, preselected bool, workdir string, mode modes.Mode) model {
 	var (
 		fwidth  int = int(math.Round(float64(width-woffset) * 0.4))
 		owidth  int = int(math.Round(float64(width-woffset) * 0.2))
@@ -131,40 +72,18 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 		theight int = min(height-hoffset, len(fs))
 
 		m = model{
-			keys:     defaultKeyMap(),
-			readonly: readonly,
-			mode:     modes.Trashing,
-			selected: map[int]bool{},
-			subtitle: workdir,
+			keys:        defaultKeyMap(),
+			readonly:    readonly,
+			preselected: preselected,
+			termheight:  height,
+			mode:        mode,
+			selected:    map[int]bool{},
+			workdir:     workdir,
+			files:       fs,
 		}
 	)
 
-	slices.SortStableFunc(fs, files.SortByModifiedReverse)
-
-	rows := []table.Row{}
-	for j, f := range fs {
-		var t, b string
-		t = humanize.Time(f.Modified())
-		if f.IsDir() {
-			b = strings.Repeat("─", 3)
-		} else {
-			b = humanize.Bytes(uint64(f.Filesize()))
-		}
-		r := table.Row{
-			dirs.UnEscape(f.Name()),
-			dirs.UnExpand(f.Path(), workdir),
-			t,
-			b,
-		}
-
-		if !m.readonly {
-			r = append(r, getCheck(preselected))
-		}
-		if preselected {
-			m.selected[j] = true
-		}
-		rows = append(rows, r)
-	}
+	rows := m.makeRows()
 
 	columns := []table.Column{
 		{Title: "filename", Width: fwidth},
@@ -180,6 +99,9 @@ func newFilesModel(fs files.Files, width, height int, readonly, preselected bool
 
 	m.table = createTable(columns, rows, theight, m.readonlyOnePage())
 
+	m.sorting = sorting.Size
+	m.sort()
+
 	return m
 }
 
@@ -191,6 +113,8 @@ type keyMap struct {
 	invr key.Binding
 	rstr key.Binding
 	clen key.Binding
+	sort key.Binding
+	rort key.Binding
 	quit key.Binding
 }
 
@@ -223,6 +147,14 @@ func defaultKeyMap() keyMap {
 		rstr: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "restore"),
+		),
+		sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "sort"),
+		),
+		rort: key.NewBinding(
+			key.WithKeys("S"),
+			key.WithHelp("S", "change sort (reverse)"),
 		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
@@ -266,6 +198,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = modes.Restoring
 				return m.quit(false)
 			}
+		case key.Matches(msg, m.keys.sort):
+			// if !m.readonly {
+			m.sorting = m.sorting.Next()
+			m.sort()
+			// }
+		case key.Matches(msg, m.keys.rort):
+			// if !m.readonly {
+			m.sorting = m.sorting.Prev()
+			m.sort()
+			// }
 		case key.Matches(msg, m.keys.quit):
 			return m.quit(true)
 		}
@@ -305,6 +247,7 @@ func (m model) readonlyOnePage() bool {
 func (m model) showHelp() string {
 	// TODO: maybe use bubbletea built in help
 	var keys []string = []string{
+		fmt.Sprintf("%s %s (%s)", darktext.Render(m.keys.sort.Help().Key), darkertext.Render(m.keys.sort.Help().Desc), m.sorting.String()),
 		fmt.Sprintf("%s %s", darktext.Render(m.keys.quit.Help().Key), darkertext.Render(m.keys.quit.Help().Desc)),
 	}
 	if !m.readonly {
@@ -341,8 +284,8 @@ func (m model) header() string {
 		mode = strings.Join(keys, wide_dot)
 	default:
 		mode = m.mode.String()
-		if m.subtitle != "" {
-			mode += fmt.Sprintf(" in %s ", dirs.UnExpand(m.subtitle, ""))
+		if m.workdir != "" {
+			mode += fmt.Sprintf(" in %s ", dirs.UnExpand(m.workdir, ""))
 		}
 	}
 	mode += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
@@ -362,6 +305,33 @@ func (m model) quit(unselect_all bool) (model, tea.Cmd) {
 	}
 	m.table.SetStyles(makeUnselectedStyle())
 	return m, tea.Quit
+}
+
+func (m *model) makeRows() (rows []table.Row) {
+	for j, f := range m.files {
+		var t, b string
+		t = humanize.Time(f.Date())
+		if f.IsDir() {
+			b = strings.Repeat("─", 3)
+		} else {
+			b = humanize.Bytes(uint64(f.Filesize()))
+		}
+		r := table.Row{
+			dirs.UnEscape(f.Name()),
+			dirs.UnExpand(filepath.Dir(f.Path()), m.workdir),
+			t,
+			b,
+		}
+
+		if !m.readonly {
+			r = append(r, getCheck(m.preselected))
+		}
+		if m.preselected {
+			m.selected[j] = true
+		}
+		rows = append(rows, r)
+	}
+	return
 }
 
 func (m *model) onlySelected() {
@@ -478,8 +448,13 @@ func (m *model) invertSelection() {
 	m.table.SetRows(newrows)
 }
 
-func InfoTable(is trash.Infos, width, height int, readonly, preselected bool, mode modes.Mode) ([]int, modes.Mode, error) {
-	if endmodel, err := tea.NewProgram(newInfosModel(is, width, height, readonly, preselected, mode)).Run(); err != nil {
+func (m *model) sort() {
+	slices.SortStableFunc(m.files, m.sorting.Sorter())
+	m.table.SetRows(m.makeRows())
+}
+
+func Show(fs []files.File, width, height int, readonly, preselected bool, workdir string, mode modes.Mode) ([]int, modes.Mode, error) {
+	if endmodel, err := tea.NewProgram(newModel(fs, width, height, readonly, preselected, workdir, mode)).Run(); err != nil {
 		return []int{}, 0, err
 	} else {
 		m, ok := endmodel.(model)
@@ -492,24 +467,6 @@ func InfoTable(is trash.Infos, width, height int, readonly, preselected bool, mo
 			return selected, m.mode, nil
 		} else {
 			return []int{}, 0, fmt.Errorf("model isn't the right type??")
-		}
-	}
-}
-
-func FilesTable(fs files.Files, width, height int, readonly, preselected bool, workdir string) ([]int, error) {
-	if endmodel, err := tea.NewProgram(newFilesModel(fs, width, height, readonly, preselected, workdir)).Run(); err != nil {
-		return []int{}, err
-	} else {
-		m, ok := endmodel.(model)
-		if ok {
-			selected := make([]int, 0, len(m.selected))
-			for k := range m.selected {
-				selected = append(selected, k)
-			}
-
-			return selected, nil
-		} else {
-			return []int{}, fmt.Errorf("model isn't the right type??")
 		}
 	}
 }

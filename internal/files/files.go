@@ -1,186 +1,22 @@
 // Package files finds and displays files on disk
 package files
 
-import (
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
+import "time"
 
-	"git.burning.moe/celediel/gt/internal/filter"
-	"github.com/charmbracelet/log"
-	"github.com/dustin/go-humanize"
-)
-
-type File struct {
-	name, path string
-	filesize   int64
-	modified   time.Time
-	isdir      bool
+type File interface {
+	Name() string
+	Path() string
+	Date() time.Time
+	Filesize() int64
+	IsDir() bool
 }
 
 type Files []File
 
-func (f File) Name() string        { return f.name }
-func (f File) Path() string        { return f.path }
-func (f File) Filename() string    { return filepath.Join(f.path, f.name) }
-func (f File) Modified() time.Time { return f.modified }
-func (f File) Filesize() int64     { return f.filesize }
-func (f File) IsDir() bool         { return f.isdir }
-
-func New(path string) (File, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return File{}, err
-	}
-
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		log.Errorf("couldn't get absolute path for %s", path)
-		abs = path
-	}
-
-	name := filepath.Base(abs)
-	base_path := filepath.Dir(abs)
-
-	log.Debugf("%s (base:%s) (size:%s) (modified:%s) exists",
-		name, base_path, humanize.Bytes(uint64(info.Size())), info.ModTime())
-
-	return File{
-		name:     name,
-		path:     base_path,
-		filesize: info.Size(),
-		modified: info.ModTime(),
-		isdir:    info.IsDir(),
-	}, nil
-}
-
-func Find(dir string, recursive bool, f *filter.Filter) (files Files, err error) {
-	if dir == "." || dir == "" {
-		var d string
-		if d, err = os.Getwd(); err != nil {
-			return
-		} else {
-			dir = d
-		}
-	}
-
-	var recursively string
-	if recursive {
-		recursively = " recursively"
-	}
-
-	log.Debugf("gonna find files%s in %s matching %s", recursively, dir, f)
-
-	if recursive {
-		files = append(files, walk_dir(dir, f)...)
-	} else {
-		files = append(files, read_dir(dir, f)...)
-	}
-
-	return
-}
-
-// is_in_recursive_dir checks `path` and parent directories
-// of `path` up to `base` for a hidden parent
-func is_in_recursive_dir(base, path string) bool {
-	me := path
-	for {
-		me = filepath.Clean(me)
-		if me == base {
-			break
-		}
-		if strings.HasPrefix(filepath.Base(me), ".") {
-			return true
-		}
-		me += string(os.PathSeparator) + ".."
-	}
-	return false
-}
-
-func walk_dir(dir string, f *filter.Filter) (files Files) {
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if dir == path {
-			return nil
-		}
-
-		if is_in_recursive_dir(dir, path) && !f.IgnoreHidden() {
-			return nil
-		}
-
-		p, e := filepath.Abs(path)
-		if e != nil {
-			return err
-		}
-
-		name := d.Name()
-		info, _ := d.Info()
-		if f.Match(name, info.ModTime(), info.Size(), info.IsDir()) {
-			log.Debugf("found matching file: %s %s", name, info.ModTime())
-			i, err := os.Stat(p)
-			if err != nil {
-				log.Debugf("error in file stat: %s", err)
-				return nil
-			}
-			files = append(files, File{
-				path:     filepath.Dir(p),
-				name:     name,
-				filesize: i.Size(),
-				modified: i.ModTime(),
-				isdir:    i.IsDir(),
-			})
-		} else {
-			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
-		}
-		return nil
-	})
-	if err != nil {
-		log.Errorf("error walking directory %s: %s", dir, err)
-		return []File{}
-	}
-	return
-}
-
-func read_dir(dir string, f *filter.Filter) (files Files) {
-	fs, err := os.ReadDir(dir)
-	if err != nil {
-		return []File{}
-	}
-	for _, file := range fs {
-		name := file.Name()
-
-		if name == dir {
-			continue
-		}
-
-		info, err := file.Info()
-		if err != nil {
-			return []File{}
-		}
-
-		path := filepath.Dir(filepath.Join(dir, name))
-
-		if f.Match(name, info.ModTime(), info.Size(), info.IsDir()) {
-			log.Debugf("found matching file: %s %s", name, info.ModTime())
-			files = append(files, File{
-				name:     name,
-				path:     path,
-				modified: info.ModTime(),
-				filesize: info.Size(),
-				isdir:    info.IsDir(),
-			})
-		} else {
-			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
-		}
-	}
-	return
-}
-
 func SortByModified(a, b File) int {
-	if a.modified.After(b.modified) {
+	if a.Date().After(b.Date()) {
 		return 1
-	} else if a.modified.Before(b.modified) {
+	} else if a.Date().Before(b.Date()) {
 		return -1
 	} else {
 		return 0
@@ -188,9 +24,9 @@ func SortByModified(a, b File) int {
 }
 
 func SortByModifiedReverse(a, b File) int {
-	if a.modified.Before(b.modified) {
+	if a.Date().Before(b.Date()) {
 		return 1
-	} else if a.modified.After(b.modified) {
+	} else if a.Date().After(b.Date()) {
 		return -1
 	} else {
 		return 0
@@ -198,9 +34,9 @@ func SortByModifiedReverse(a, b File) int {
 }
 
 func SortBySize(a, b File) int {
-	if a.filesize > b.filesize {
+	if a.Filesize() > b.Filesize() {
 		return 1
-	} else if a.filesize < b.filesize {
+	} else if a.Filesize() < b.Filesize() {
 		return -1
 	} else {
 		return 0
@@ -208,9 +44,49 @@ func SortBySize(a, b File) int {
 }
 
 func SortBySizeReverse(a, b File) int {
-	if a.filesize < b.filesize {
+	if a.Filesize() < b.Filesize() {
 		return 1
-	} else if a.filesize > b.filesize {
+	} else if a.Filesize() > b.Filesize() {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func SortByName(a, b File) int {
+	if a.Name() > b.Name() {
+		return 1
+	} else if a.Name() < b.Name() {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func SortByNameReverse(a, b File) int {
+	if a.Name() < b.Name() {
+		return 1
+	} else if a.Name() > b.Name() {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func SortByPath(a, b File) int {
+	if a.Path() > b.Path() {
+		return 1
+	} else if a.Path() < b.Path() {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func SortByPathReverse(a, b File) int {
+	if a.Path() < b.Path() {
+		return 1
+	} else if a.Path() > b.Path() {
 		return -1
 	} else {
 		return 0

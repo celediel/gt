@@ -2,6 +2,7 @@
 
 set -l commands list ls trash tr clean cl restore re
 set -l already_in_trash_commands list ls clean cl restore re
+set -l trash_commands trash tr
 set -l log_levels debug info warn error fatal
 
 # commands
@@ -30,8 +31,8 @@ complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l min-size -s N -
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l max-size -s X -d "operate on files smaller than size"
 
 # trash flags
-complete -c gt -rf -n "__fish_seen_subcommand_from trash" -l recursive -s r -d "recursively trash files"
-complete -c gt -rf -n "__fish_seen_subcommand_from trash" -l work-dir -s w -d "trash files in specified directory"
+complete -c gt -rf -n "__fish_seen_subcommand_from $trash_commands" -l recursive -s r -d "recursively trash files"
+complete -c gt -rf -n "__fish_seen_subcommand_from $trash_commands" -l work-dir -s w -d "trash files in specified directory"
 
 # list / clean / restore flags
 complete -c gt -rf -n "__fish_seen_subcommand_from $already_in_trash_commands" -l original-path -s O -d "operate on files trashed from this directory"

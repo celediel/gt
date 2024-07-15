@@ -11,14 +11,12 @@ import (
 // $HOME -> ~
 // $PWD -> .
 // workdir -> .
-func UnExpand(dir, workdir string) (outdir string) {
+func UnExpand(dir string) (outdir string) {
 	outdir = filepath.Clean(dir)
 	home := os.Getenv("HOME")
 
 	if pwd, err := os.Getwd(); err == nil && home != pwd {
 		outdir = strings.Replace(outdir, pwd, ".", 1)
-	} else if workdir != "" {
-		outdir = strings.Replace(outdir, workdir, "", 1)
 	}
 
 	outdir = strings.Replace(outdir, home, "~", 1)

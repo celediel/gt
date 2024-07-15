@@ -64,6 +64,7 @@ func NewDisk(path string) (DiskFile, error) {
 }
 
 func FindDisk(dir string, recursive bool, f *filter.Filter) (files Files, err error) {
+	dir = filepath.Clean(dir)
 	if dir == "." || dir == "" {
 		var d string
 		if d, err = os.Getwd(); err != nil {

@@ -78,10 +78,13 @@ func newModel(fs []files.File, width, height int, readonly, preselected, once bo
 			termheight: height,
 			mode:       mode,
 			selected:   map[string]bool{},
-			workdir:    workdir,
 			files:      fs,
 		}
 	)
+
+	if workdir != "" {
+		m.workdir = filepath.Clean(workdir)
+	}
 
 	rows := m.freshRows(preselected)
 

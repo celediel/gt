@@ -34,7 +34,7 @@ var (
 	o, b, a, g, p  string
 	sm, lg         string
 	ung, unp       string
-	fo, do, sh     bool
+	fo, do, sh, ni bool
 	askconfirm     bool
 	workdir, ogdir cli.Path
 	recursive      bool
@@ -184,7 +184,7 @@ var (
 		Name:    "list",
 		Aliases: []string{"ls"},
 		Usage:   "List trashed files",
-		Flags:   slices.Concat(alreadyintrashFlags, filterFlags),
+		Flags:   slices.Concat(listFlags, alreadyintrashFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(ctx *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
@@ -392,6 +392,15 @@ var (
 			Usage:       "operate on files trashed from this `DIRECTORY`",
 			Aliases:     []string{"O"},
 			Destination: &ogdir,
+		},
+	}
+
+	listFlags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:        "non-interactive",
+			Usage:       "list files and quit",
+			Aliases:     []string{"n"},
+			Destination: &ni,
 		},
 	}
 )

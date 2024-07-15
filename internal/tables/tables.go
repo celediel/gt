@@ -54,6 +54,7 @@ type model struct {
 	keys       keyMap
 	selected   map[string]bool
 	readonly   bool
+	once       bool
 	termheight int
 	mode       modes.Mode
 	sorting    sorting.Sorting
@@ -61,7 +62,7 @@ type model struct {
 	files      files.Files
 }
 
-func newModel(fs []files.File, width, height int, readonly, preselected bool, workdir string, mode modes.Mode) model {
+func newModel(fs []files.File, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) model {
 	var (
 		fwidth  int = int(math.Round(float64(width-woffset) * 0.4))
 		owidth  int = int(math.Round(float64(width-woffset) * 0.2))
@@ -73,6 +74,7 @@ func newModel(fs []files.File, width, height int, readonly, preselected bool, wo
 		m = model{
 			keys:       defaultKeyMap(),
 			readonly:   readonly,
+			once:       once,
 			termheight: height,
 			mode:       mode,
 			selected:   map[string]bool{},
@@ -162,11 +164,20 @@ func defaultKeyMap() keyMap {
 }
 
 func (m model) Init() tea.Cmd {
+	/* if m.onePage() {
+		m.table.SetStyles(makeUnselectedStyle())
+		m.unselectAll()
+		return tea.Quit
+	} */
 	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if m.once {
+		return m.quit(true)
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -298,6 +309,15 @@ func (m model) selectedFiles() (outfile files.Files) {
 	}
 	return
 }
+
+/* func (m model) onePage() bool {
+	x := m.termheight
+	y := len(m.table.Rows()) + hoffset
+	if x > y && m.readonly {
+		return true
+	}
+	return false
+} */
 
 func newRow(file files.File, workdir string) table.Row {
 	var t, b string

@@ -132,15 +132,26 @@ func Restore(files Files) (restored int, err error) {
 		if _, e := os.Stat(outpath); e == nil {
 			outpath, cancel = promptNewPath(outpath)
 		}
+
 		if cancel {
 			continue
 		}
+
+		basedir := filepath.Dir(outpath)
+		if _, e := os.Stat(basedir); e != nil {
+			if err = os.MkdirAll(basedir, fs.FileMode(0755)); err != nil {
+				return restored, err
+			}
+		}
+
 		if err = os.Rename(file.path, outpath); err != nil {
 			return restored, err
 		}
+
 		if err = os.Remove(file.trashinfo); err != nil {
 			return restored, err
 		}
+
 		restored++
 	}
 	return restored, err

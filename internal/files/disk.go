@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,6 +30,10 @@ func (f DiskFile) Filesize() int64 {
 		return -1
 	}
 	return f.filesize
+}
+
+func (f DiskFile) String() string {
+	return fmt.Sprintf(string_format, f.name, f.path, f.modified.Format(time.UnixDate), f.filesize, f.isdir)
 }
 
 func NewDisk(path string) (DiskFile, error) {

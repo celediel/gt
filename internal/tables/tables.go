@@ -50,16 +50,15 @@ var (
 )
 
 type model struct {
-	table       table.Model
-	keys        keyMap
-	selected    map[int]bool
-	readonly    bool
-	preselected bool
-	termheight  int
-	mode        modes.Mode
-	sorting     sorting.Sorting
-	workdir     string
-	files       files.Files
+	table      table.Model
+	keys       keyMap
+	selected   map[string]bool
+	readonly   bool
+	termheight int
+	mode       modes.Mode
+	sorting    sorting.Sorting
+	workdir    string
+	files      files.Files
 }
 
 func newModel(fs []files.File, width, height int, readonly, preselected bool, workdir string, mode modes.Mode) model {
@@ -72,18 +71,17 @@ func newModel(fs []files.File, width, height int, readonly, preselected bool, wo
 		theight int = min(height-hoffset, len(fs))
 
 		m = model{
-			keys:        defaultKeyMap(),
-			readonly:    readonly,
-			preselected: preselected,
-			termheight:  height,
-			mode:        mode,
-			selected:    map[int]bool{},
-			workdir:     workdir,
-			files:       fs,
+			keys:       defaultKeyMap(),
+			readonly:   readonly,
+			termheight: height,
+			mode:       mode,
+			selected:   map[string]bool{},
+			workdir:    workdir,
+			files:      fs,
 		}
 	)
 
-	rows := m.makeRows()
+	rows := m.freshRows(preselected)
 
 	columns := []table.Column{
 		{Title: "filename", Width: fwidth},
@@ -97,7 +95,7 @@ func newModel(fs []files.File, width, height int, readonly, preselected bool, wo
 		columns[0].Width += cwidth
 	}
 
-	m.table = createTable(columns, rows, theight, m.readonlyOnePage())
+	m.table = createTable(columns, rows, theight)
 
 	m.sorting = sorting.Name
 	m.sort()
@@ -164,9 +162,6 @@ func defaultKeyMap() keyMap {
 }
 
 func (m model) Init() tea.Cmd {
-	if m.readonlyOnePage() {
-		return tea.Quit
-	}
 	return nil
 }
 
@@ -199,15 +194,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.quit(false)
 			}
 		case key.Matches(msg, m.keys.sort):
-			// if !m.readonly {
 			m.sorting = m.sorting.Next()
 			m.sort()
-			// }
 		case key.Matches(msg, m.keys.rort):
-			// if !m.readonly {
 			m.sorting = m.sorting.Prev()
 			m.sort()
-			// }
 		case key.Matches(msg, m.keys.quit):
 			return m.quit(true)
 		}
@@ -226,11 +217,7 @@ func (m model) View() (out string) {
 		}
 	)
 
-	if m.readonlyOnePage() {
-		n = "\n"
-	} else {
-		panels = append(panels, m.footer())
-	}
+	panels = append(panels, m.footer())
 
 	if m.mode != modes.Listing {
 		panels = append([]string{m.header()}, panels...)
@@ -238,10 +225,6 @@ func (m model) View() (out string) {
 
 	out = lipgloss.JoinVertical(lipgloss.Top, panels...)
 	return out + n
-}
-
-func (m model) readonlyOnePage() bool {
-	return m.readonly && m.termheight > m.table.Height()
 }
 
 func (m model) showHelp() string {
@@ -307,27 +290,40 @@ func (m model) quit(unselect_all bool) (model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m *model) makeRows() (rows []table.Row) {
-	for j, f := range m.files {
-		var t, b string
-		t = humanize.Time(f.Date())
-		if f.IsDir() {
-			b = strings.Repeat("─", 3)
-		} else {
-			b = humanize.Bytes(uint64(f.Filesize()))
+func (m model) selectedFiles() (outfile files.Files) {
+	for _, file := range m.files {
+		if m.selected[file.String()] {
+			outfile = append(outfile, file)
 		}
-		r := table.Row{
-			dirs.UnEscape(f.Name()),
-			dirs.UnExpand(filepath.Dir(f.Path()), m.workdir),
-			t,
-			b,
-		}
+	}
+	return
+}
+
+func newRow(file files.File, workdir string) table.Row {
+	var t, b string
+	t = humanize.Time(file.Date())
+	if file.IsDir() {
+		b = strings.Repeat("─", 3)
+	} else {
+		b = humanize.Bytes(uint64(file.Filesize()))
+	}
+	return table.Row{
+		dirs.UnEscape(file.Name()),
+		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
+		t,
+		b,
+	}
+}
+
+func (m *model) freshRows(preselected bool) (rows []table.Row) {
+	for _, f := range m.files {
+		r := newRow(f, m.workdir)
 
 		if !m.readonly {
-			r = append(r, getCheck(m.preselected))
+			r = append(r, getCheck(preselected))
 		}
-		if m.preselected {
-			m.selected[j] = true
+		if preselected {
+			m.selected[f.String()] = true
 		}
 		rows = append(rows, r)
 	}
@@ -377,20 +373,21 @@ func (m *model) updateRows(selected bool) {
 	m.table.SetRows(newrows)
 }
 
-// toggleItem toggles an item's selected state, and returns the state
 func (m *model) toggleItem(index int) (selected bool) {
 	if m.readonly {
 		return false
 	}
 
+	name := m.files[index].String()
+
 	// select the thing
-	if v, ok := m.selected[index]; v && ok {
+	if v, ok := m.selected[name]; v && ok {
 		// already selected
-		delete(m.selected, index)
+		delete(m.selected, name)
 		selected = false
 	} else {
 		// not selected
-		m.selected[index] = true
+		m.selected[name] = true
 		selected = true
 	}
 
@@ -404,9 +401,9 @@ func (m *model) selectAll() {
 		return
 	}
 
-	m.selected = map[int]bool{}
+	m.selected = map[string]bool{}
 	for i := range len(m.table.Rows()) {
-		m.selected[i] = true
+		m.selected[m.files[i].String()] = true
 	}
 	m.updateRows(true)
 }
@@ -416,16 +413,21 @@ func (m *model) unselectAll() {
 		return
 	}
 
-	m.selected = map[int]bool{}
+	m.selected = map[string]bool{}
 	m.updateRows(false)
 }
 
 func (m *model) invertSelection() {
+	if m.readonly {
+		return
+	}
+
 	var newrows []table.Row
 
 	for index, row := range m.table.Rows() {
-		if v, ok := m.selected[index]; v && ok {
-			delete(m.selected, index)
+		name := m.files[index].String()
+		if v, ok := m.selected[name]; v && ok {
+			delete(m.selected, name)
 			newrows = append(newrows, table.Row{
 				row[0],
 				row[1],
@@ -434,7 +436,7 @@ func (m *model) invertSelection() {
 				getCheck(false),
 			})
 		} else {
-			m.selected[index] = true
+			m.selected[name] = true
 			newrows = append(newrows, table.Row{
 				row[0],
 				row[1],
@@ -450,25 +452,29 @@ func (m *model) invertSelection() {
 
 func (m *model) sort() {
 	slices.SortStableFunc(m.files, m.sorting.Sorter())
-	m.table.SetRows(m.makeRows())
+	var rows []table.Row
+	for _, file := range m.files {
+		r := newRow(file, m.workdir)
+		if !m.readonly {
+			r = append(r, getCheck(m.selected[file.String()]))
+		}
+		rows = append(rows, r)
+	}
+
+	m.table.SetRows(rows)
 }
 
-func Show(fs []files.File, width, height int, readonly, preselected bool, workdir string, mode modes.Mode) ([]int, modes.Mode, error) {
-	if endmodel, err := tea.NewProgram(newModel(fs, width, height, readonly, preselected, workdir, mode)).Run(); err != nil {
-		return []int{}, 0, err
-	} else {
-		m, ok := endmodel.(model)
-		if ok {
-			selected := make([]int, 0, len(m.selected))
-			for k := range m.selected {
-				selected = append(selected, k)
-			}
-
-			return selected, m.mode, nil
-		} else {
-			return []int{}, 0, fmt.Errorf("model isn't the right type??")
-		}
+func Select(fs files.Files, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
+	mdl := newModel(fs, width, height, readonly, preselected, once, workdir, mode)
+	endmodel, err := tea.NewProgram(mdl).Run()
+	if err != nil {
+		return fs, 0, err
 	}
+	m, ok := endmodel.(model)
+	if !ok {
+		return fs, 0, fmt.Errorf("model isn't the right type?? what has happened")
+	}
+	return m.selectedFiles(), m.mode, nil
 }
 
 func getCheck(selected bool) (ourcheck string) {
@@ -480,7 +486,7 @@ func getCheck(selected bool) (ourcheck string) {
 	return
 }
 
-func createTable(columns []table.Column, rows []table.Row, height int, readonlyonepage bool) table.Model {
+func createTable(columns []table.Column, rows []table.Row, height int) table.Model {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
@@ -488,11 +494,7 @@ func createTable(columns []table.Column, rows []table.Row, height int, readonlyo
 		table.WithHeight(height),
 	)
 	t.KeyMap = fixTableKeymap()
-	if readonlyonepage {
-		t.SetStyles(makeUnselectedStyle())
-	} else {
-		t.SetStyles(makeStyle())
-	}
+	t.SetStyles(makeStyle())
 	return t
 }
 

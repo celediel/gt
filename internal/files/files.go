@@ -6,12 +6,15 @@ import (
 	"time"
 )
 
+const string_format = "%s %s %s %d %t"
+
 type File interface {
 	Name() string
 	Path() string
 	Date() time.Time
 	Filesize() int64
 	IsDir() bool
+	String() string
 }
 
 type Files []File

@@ -167,14 +167,9 @@ var (
 				selectall = !f.Blank()
 			}
 
-			indices, _, err := tables.Show(files_to_trash, termwidth, termheight, false, selectall, workdir, modes.Trashing)
+			selected, _, err := tables.Select(files_to_trash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
 			if err != nil {
 				return err
-			}
-
-			var selected files.Files
-			for _, i := range indices {
-				selected = append(selected, files_to_trash[i])
 			}
 
 			if len(selected) <= 0 {
@@ -195,7 +190,6 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			// fls, err := trash.FindFiles(trashDir, ogdir, f)
 			fls, err := files.FindTrash(trashDir, ogdir, f)
 
 			var msg string
@@ -214,7 +208,7 @@ var (
 			}
 
 			// display them
-			_, _, err = tables.Show(fls, termwidth, termheight, true, false, workdir, modes.Listing)
+			_, _, err = tables.Select(fls, termwidth, termheight, true, false, ni, workdir, modes.Listing)
 
 			return err
 		},
@@ -238,14 +232,9 @@ var (
 				return err
 			}
 
-			indices, _, err := tables.Show(fls, termwidth, termheight, false, !f.Blank(), workdir, modes.Restoring)
+			selected, _, err := tables.Select(fls, termwidth, termheight, false, !f.Blank(), ni, workdir, modes.Restoring)
 			if err != nil {
 				return err
-			}
-
-			var selected files.Files
-			for _, i := range indices {
-				selected = append(selected, fls[i])
 			}
 
 			if len(selected) <= 0 {
@@ -271,14 +260,9 @@ var (
 				return err
 			}
 
-			indices, _, err := tables.Show(fls, termwidth, termheight, false, !f.Blank(), workdir, modes.Cleaning)
+			selected, _, err := tables.Select(fls, termwidth, termheight, false, !f.Blank(), ni, workdir, modes.Cleaning)
 			if err != nil {
 				return err
-			}
-
-			var selected files.Files
-			for _, i := range indices {
-				selected = append(selected, fls[i])
 			}
 
 			if len(selected) <= 0 {
@@ -433,18 +417,18 @@ func main() {
 
 func interactiveMode() error {
 	var (
-		fls      files.Files
-		indicies []int
+		infiles  files.Files
+		selected files.Files
 		mode     modes.Mode
 		err      error
 	)
 
-	fls, err = files.FindTrash(trashDir, ogdir, f)
+	infiles, err = files.FindTrash(trashDir, ogdir, f)
 	if err != nil {
 		return err
 	}
 
-	if len(fls) <= 0 {
+	if len(infiles) <= 0 {
 		var msg string
 		if f.Blank() {
 			msg = "trash is empty"
@@ -455,14 +439,9 @@ func interactiveMode() error {
 		return nil
 	}
 
-	indicies, mode, err = tables.Show(fls, termwidth, termheight, false, false, workdir, modes.Interactive)
+	selected, mode, err = tables.Select(infiles, termwidth, termheight, false, false, false, workdir, modes.Interactive)
 	if err != nil {
 		return err
-	}
-
-	var selected files.Files
-	for _, i := range indicies {
-		selected = append(selected, fls[i])
 	}
 
 	switch mode {

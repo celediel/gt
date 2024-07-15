@@ -1,7 +1,10 @@
 // Package files finds and displays files on disk
 package files
 
-import "time"
+import (
+	"cmp"
+	"time"
+)
 
 type File interface {
 	Name() string
@@ -14,16 +17,6 @@ type File interface {
 type Files []File
 
 func SortByModified(a, b File) int {
-	if a.Date().After(b.Date()) {
-		return 1
-	} else if a.Date().Before(b.Date()) {
-		return -1
-	} else {
-		return 0
-	}
-}
-
-func SortByModifiedReverse(a, b File) int {
 	if a.Date().Before(b.Date()) {
 		return 1
 	} else if a.Date().After(b.Date()) {
@@ -33,60 +26,54 @@ func SortByModifiedReverse(a, b File) int {
 	}
 }
 
-func SortBySize(a, b File) int {
-	if a.Filesize() > b.Filesize() {
+func SortByModifiedReverse(a, b File) int {
+	if a.Date().After(b.Date()) {
 		return 1
-	} else if a.Filesize() < b.Filesize() {
+	} else if a.Date().Before(b.Date()) {
 		return -1
 	} else {
 		return 0
 	}
+}
+
+func SortBySize(a, b File) int {
+	return cmp.Compare(b.Filesize(), a.Filesize())
 }
 
 func SortBySizeReverse(a, b File) int {
-	if a.Filesize() < b.Filesize() {
-		return 1
-	} else if a.Filesize() > b.Filesize() {
-		return -1
-	} else {
-		return 0
-	}
+	return cmp.Compare(a.Filesize(), b.Filesize())
 }
 
 func SortByName(a, b File) int {
-	if a.Name() > b.Name() {
-		return 1
-	} else if a.Name() < b.Name() {
-		return -1
-	} else {
-		return 0
-	}
+	return cmp.Compare(a.Name(), b.Name())
 }
 
 func SortByNameReverse(a, b File) int {
-	if a.Name() < b.Name() {
-		return 1
-	} else if a.Name() > b.Name() {
-		return -1
-	} else {
-		return 0
-	}
+	return cmp.Compare(b.Name(), a.Name())
 }
 
 func SortByPath(a, b File) int {
-	if a.Path() > b.Path() {
+	return cmp.Compare(a.Path(), b.Path())
+}
+
+func SortByPathReverse(a, b File) int {
+	return cmp.Compare(b.Path(), a.Path())
+}
+
+func SortDirectoriesFirst(a, b File) int {
+	if !a.IsDir() && b.IsDir() {
 		return 1
-	} else if a.Path() < b.Path() {
+	} else if a.IsDir() && !b.IsDir() {
 		return -1
 	} else {
 		return 0
 	}
 }
 
-func SortByPathReverse(a, b File) int {
-	if a.Path() < b.Path() {
+func SortDirectoriesLast(a, b File) int {
+	if a.IsDir() && !b.IsDir() {
 		return 1
-	} else if a.Path() > b.Path() {
+	} else if !a.IsDir() && b.IsDir() {
 		return -1
 	} else {
 		return 0

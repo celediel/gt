@@ -89,9 +89,9 @@ func FindDisk(dir string, recursive bool, f *filter.Filter) (files Files, err er
 	return
 }
 
-// is_in_recursive_dir checks `path` and parent directories
+// is_in_hidden_dir checks `path` and parent directories
 // of `path` up to `base` for a hidden parent
-func is_in_recursive_dir(base, path string) bool {
+func is_in_hidden_dir(base, path string) bool {
 	me := path
 	for {
 		me = filepath.Clean(me)
@@ -112,7 +112,7 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 			return nil
 		}
 
-		if is_in_recursive_dir(dir, path) && !f.IgnoreHidden() {
+		if is_in_hidden_dir(dir, path) && f.IgnoreHidden() {
 			return nil
 		}
 

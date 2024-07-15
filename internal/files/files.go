@@ -3,6 +3,7 @@ package files
 
 import (
 	"cmp"
+	"strings"
 	"time"
 )
 
@@ -63,6 +64,16 @@ func SortByPathReverse(a, b File) int {
 	return cmp.Compare(b.Path(), a.Path())
 }
 
+func SortByExtension(a, b File) int {
+	aext, bext := getExts(a, b)
+	return cmp.Compare(aext, bext)
+}
+
+func SortByExtensionReverse(a, b File) int {
+	aext, bext := getExts(a, b)
+	return cmp.Compare(bext, aext)
+}
+
 func SortDirectoriesFirst(a, b File) int {
 	if !a.IsDir() && b.IsDir() {
 		return 1
@@ -81,4 +92,21 @@ func SortDirectoriesLast(a, b File) int {
 	} else {
 		return 0
 	}
+}
+
+func getExts(a, b File) (string, string) {
+	var aext, bext string
+	as := strings.Split(a.Name(), ".")
+	bs := strings.Split(b.Name(), ".")
+	if len(as) <= 1 {
+		aext = ""
+	} else {
+		aext = as[len(as)-1]
+	}
+	if len(bs) <= 1 {
+		aext = ""
+	} else {
+		bext = bs[len(bs)-1]
+	}
+	return aext, bext
 }

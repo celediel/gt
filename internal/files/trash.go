@@ -46,8 +46,13 @@ func (t TrashInfo) TrashPath() string { return t.path }
 func (t TrashInfo) Path() string      { return t.ogpath }
 func (t TrashInfo) TrashInfo() string { return t.trashinfo }
 func (t TrashInfo) Date() time.Time   { return t.trashed }
-func (t TrashInfo) Filesize() int64   { return t.filesize }
 func (t TrashInfo) IsDir() bool       { return t.isdir }
+func (t TrashInfo) Filesize() int64 {
+	if t.isdir {
+		return -1
+	}
+	return t.filesize
+}
 
 func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr error) {
 	outerr = filepath.WalkDir(trashdir, func(path string, d fs.DirEntry, err error) error {

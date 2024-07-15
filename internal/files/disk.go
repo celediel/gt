@@ -23,8 +23,13 @@ type DiskFile struct {
 func (f DiskFile) Name() string    { return f.name }
 func (f DiskFile) Path() string    { return filepath.Join(f.path, f.name) }
 func (f DiskFile) Date() time.Time { return f.modified }
-func (f DiskFile) Filesize() int64 { return f.filesize }
 func (f DiskFile) IsDir() bool     { return f.isdir }
+func (f DiskFile) Filesize() int64 {
+	if f.isdir {
+		return -1
+	}
+	return f.filesize
+}
 
 func NewDisk(path string) (DiskFile, error) {
 	info, err := os.Stat(path)

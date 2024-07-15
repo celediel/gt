@@ -13,11 +13,13 @@ const (
 	PathReverse
 	Size
 	SizeReverse
+	Directory
+	DirectoryReverse
 )
 
 func (s Sorting) Next() Sorting {
 	switch s {
-	case SizeReverse:
+	case DirectoryReverse:
 		return Name
 	default:
 		return s + 1
@@ -27,7 +29,7 @@ func (s Sorting) Next() Sorting {
 func (s Sorting) Prev() Sorting {
 	switch s {
 	case Name:
-		return SizeReverse
+		return DirectoryReverse
 	default:
 		return s - 1
 	}
@@ -51,6 +53,10 @@ func (s Sorting) String() string {
 		return "size"
 	case SizeReverse:
 		return "size (r)"
+	case Directory:
+		return "directories first"
+	case DirectoryReverse:
+		return "directories last"
 	default:
 		return "0"
 	}
@@ -74,6 +80,10 @@ func (s Sorting) Sorter() func(a, b files.File) int {
 		return files.SortBySize
 	case SizeReverse:
 		return files.SortBySizeReverse
+	case Directory:
+		return files.SortDirectoriesFirst
+	case DirectoryReverse:
+		return files.SortDirectoriesLast
 	default:
 		return files.SortByName
 	}

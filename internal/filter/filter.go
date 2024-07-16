@@ -25,6 +25,7 @@ type Filter struct {
 	matcher             *regexp.Regexp
 	unmatcher           *regexp.Regexp
 	minsize, maxsize    int64
+	mode                fs.FileMode
 }
 
 func (f *Filter) On() time.Time       { return f.on }
@@ -38,6 +39,7 @@ func (f *Filter) DirsOnly() bool      { return f.dirsonly }
 func (f *Filter) IgnoreHidden() bool  { return f.ignorehidden }
 func (f *Filter) MinSize() int64      { return f.minsize }
 func (f *Filter) MaxSize() int64      { return f.maxsize }
+func (f *Filter) Mode() fs.FileMode   { return f.mode }
 
 func (f *Filter) AddFileName(filename string) {
 	filename = filepath.Clean(filename)
@@ -55,6 +57,7 @@ func (f *Filter) Match(info fs.FileInfo) bool {
 	modified := info.ModTime()
 	isdir := info.IsDir()
 	size := info.Size()
+	mode := info.Mode()
 
 	// on or before/after, not both
 	if !f.on.IsZero() {
@@ -127,6 +130,11 @@ func (f *Filter) Match(info fs.FileInfo) bool {
 		return false
 	}
 
+	if f.mode != 0 && f.mode != mode && f.mode-fs.ModeDir != mode {
+		log.Debugf("%s mode:'%s' (%d) isn't '%s' (%d), bye!", filename, mode, mode, f.mode, f.mode)
+		return false
+	}
+
 	// okay it was good
 	log.Debugf("%s modified:'%s' dir:'%T' mode:'%s' was a good one!", filename, modified, isdir, mode)
 	return true
@@ -160,7 +168,8 @@ func (f *Filter) Blank() bool {
 		!f.filesonly &&
 		!f.dirsonly &&
 		f.minsize == 0 &&
-		f.maxsize == 0
+		f.maxsize == 0 &&
+		f.mode == 0
 }
 
 func (f *Filter) String() string {
@@ -172,13 +181,12 @@ func (f *Filter) String() string {
 		unm = f.unmatcher.String()
 	}
 	return fmt.Sprintf("on:'%s' before:'%s' after:'%s' glob:'%s' regex:'%s' unglob:'%s' "+
-		"unregex:'%s' filenames:'%v' filesonly:'%t' dirsonly:'%t' ignorehidden:'%t'",
+		"unregex:'%s' filenames:'%v' filesonly:'%t' dirsonly:'%t' ignorehidden:'%t' "+
+		"minsize:'%d' maxsize:'%d' mode:'%s'",
 		f.on, f.before, f.after,
-		f.glob, m,
-		f.unglob, unm,
-		f.filenames,
-		f.filesonly, f.dirsonly,
-		f.ignorehidden,
+		f.glob, m, f.unglob, unm,
+		f.filenames, f.filesonly, f.dirsonly,
+		f.ignorehidden, f.minsize, f.maxsize, f.mode,
 	)
 }
 
@@ -196,7 +204,7 @@ func (f *Filter) has_unregex() bool {
 	return f.unmatcher.String() != ""
 }
 
-func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, ignorehidden bool, minsize, maxsize string, names ...string) (*Filter, error) {
+func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, dirsonly, ignorehidden bool, minsize, maxsize string, mode fs.FileMode, names ...string) (*Filter, error) {
 	var (
 		err error
 		now = time.Now()
@@ -208,6 +216,7 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		filesonly:    filesonly,
 		dirsonly:     dirsonly,
 		ignorehidden: ignorehidden,
+		mode:         mode,
 	}
 
 	f.AddFileNames(names...)

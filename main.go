@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"time"
 
 	"git.burning.moe/celediel/gt/internal/files"
@@ -29,17 +30,17 @@ const (
 )
 
 var (
-	loglvl         string
-	f              *filter.Filter
-	o, b, a, g, p  string
-	sm, lg         string
-	ung, unp       string
-	fo, do, sh, ni bool
-	askconfirm     bool
-	workdir, ogdir cli.Path
-	recursive      bool
-	termwidth      int
-	termheight     int
+	loglvl           string
+	f                *filter.Filter
+	o, b, a, g, p, m string
+	sm, lg           string
+	ung, unp         string
+	fo, do, sh, ni   bool
+	askconfirm       bool
+	workdir, ogdir   cli.Path
+	recursive        bool
+	termwidth        int
+	termheight       int
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
@@ -91,7 +92,11 @@ var (
 		)
 
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg)
+			md, e := getMode(m)
+			if e != nil {
+				return e
+			}
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg, md)
 		}
 		if err != nil {
 			return err
@@ -115,7 +120,11 @@ var (
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg, ctx.Args().Slice()...)
+			md, e := getMode(m)
+			if e != nil {
+				return e
+			}
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg, md, ctx.Args().Slice()...)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -123,7 +132,11 @@ var (
 
 	beforeTrash = func(_ *cli.Context) (err error) {
 		if f == nil {
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, !sh, sm, lg)
+			md, e := getMode(m)
+			if e != nil {
+				return e
+			}
+			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, !sh, sm, lg, md)
 		}
 		log.Debugf("filter: %s", f.String())
 		return
@@ -360,6 +373,12 @@ var (
 			Aliases:     []string{"X"},
 			Destination: &lg,
 		},
+		&cli.StringFlag{
+			Name:        "mode",
+			Usage:       "operate on files matching mode `MODE`",
+			Aliases:     []string{"x"},
+			Destination: &m,
+		},
 	}
 
 	trashFlags = []cli.Flag{
@@ -523,4 +542,18 @@ func confirmTrash(fs files.Files) error {
 		return nil
 	}
 	return nil
+}
+
+func getMode(in string) (fs.FileMode, error) {
+	if in == "" {
+		return fs.FileMode(0), nil
+	}
+	if len(m) == 3 {
+		in = "0" + in
+	}
+	md, e := strconv.ParseUint(in, 8, 64)
+	if e != nil {
+		return 0, e
+	}
+	return fs.FileMode(md), nil
 }

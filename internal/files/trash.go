@@ -39,6 +39,7 @@ type TrashInfo struct {
 	isdir           bool
 	trashed         time.Time
 	filesize        int64
+	mode            fs.FileMode
 }
 
 func (t TrashInfo) Name() string      { return t.name }
@@ -47,6 +48,7 @@ func (t TrashInfo) Path() string      { return t.ogpath }
 func (t TrashInfo) TrashInfo() string { return t.trashinfo }
 func (t TrashInfo) Date() time.Time   { return t.trashed }
 func (t TrashInfo) IsDir() bool       { return t.isdir }
+func (t TrashInfo) Mode() fs.FileMode { return t.mode }
 func (t TrashInfo) Filesize() int64 {
 	if t.isdir {
 		return -1

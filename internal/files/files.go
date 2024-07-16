@@ -3,6 +3,7 @@ package files
 
 import (
 	"cmp"
+	"io/fs"
 	"strings"
 	"time"
 )
@@ -13,6 +14,7 @@ type File interface {
 	Date() time.Time
 	Filesize() int64
 	IsDir() bool
+	Mode() fs.FileMode
 	String() string
 }
 

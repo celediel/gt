@@ -18,12 +18,14 @@ type DiskFile struct {
 	filesize   int64
 	modified   time.Time
 	isdir      bool
+	mode       fs.FileMode
 }
 
-func (f DiskFile) Name() string    { return f.name }
-func (f DiskFile) Path() string    { return f.path }
-func (f DiskFile) Date() time.Time { return f.modified }
-func (f DiskFile) IsDir() bool     { return f.isdir }
+func (f DiskFile) Name() string      { return f.name }
+func (f DiskFile) Path() string      { return f.path }
+func (f DiskFile) Date() time.Time   { return f.modified }
+func (f DiskFile) IsDir() bool       { return f.isdir }
+func (f DiskFile) Mode() fs.FileMode { return f.mode }
 func (f DiskFile) Filesize() int64 {
 	if f.isdir {
 		return -1
@@ -61,6 +63,7 @@ func NewDisk(path string) (DiskFile, error) {
 		filesize: info.Size(),
 		modified: info.ModTime(),
 		isdir:    info.IsDir(),
+		mode:     info.Mode(),
 	}, nil
 }
 
@@ -170,6 +173,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 				modified: info.ModTime(),
 				filesize: info.Size(),
 				isdir:    info.IsDir(),
+				mode:     info.Mode(),
 			})
 		}
 	}

@@ -33,6 +33,7 @@ type testholder struct {
 	ignorehidden        bool
 	good, bad           []singletest
 	minsize, maxsize    string
+	mode                fs.FileMode
 }
 
 func (t testholder) String() string {
@@ -74,7 +75,7 @@ func testmatch(t *testing.T, testers []testholder) {
 		f, err = filter.New(
 			tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 			tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
-			tester.ignorehidden, tester.minsize, tester.maxsize,
+			tester.ignorehidden, tester.minsize, tester.maxsize, tester.mode,
 			tester.filenames...,
 		)
 		if err != nil {
@@ -102,7 +103,7 @@ func testmatch(t *testing.T, testers []testholder) {
 func nameonly(dir bool, names ...string) []singletest {
 	out := make([]singletest, 0, len(names))
 	for _, name := range names {
-		out = append(out, singletest{filename: name, modified: time.Time{}, isdir: dir, size: 0})
+		out = append(out, singletest{filename: name, modified: time.Time{}, isdir: dir, size: 0, mode: 0000})
 	}
 	return out
 }
@@ -110,7 +111,7 @@ func nameonly(dir bool, names ...string) []singletest {
 func timeonly(dir bool, times ...time.Time) []singletest {
 	out := make([]singletest, 0, len(times))
 	for _, time := range times {
-		out = append(out, singletest{filename: "blank.txt", modified: time, isdir: dir, size: 0})
+		out = append(out, singletest{filename: "blank.txt", modified: time, isdir: dir, size: 0, mode: 0000})
 	}
 	return out
 }
@@ -118,7 +119,15 @@ func timeonly(dir bool, times ...time.Time) []singletest {
 func sizeonly(dir bool, sizes ...int64) []singletest {
 	out := make([]singletest, 0, len(sizes))
 	for _, size := range sizes {
-		out = append(out, singletest{filename: "blank", modified: time.Time{}, isdir: dir, size: size})
+		out = append(out, singletest{filename: "blank", modified: time.Time{}, isdir: dir, size: size, mode: 0000})
+	}
+	return out
+}
+
+func modeonly(dir bool, modes ...fs.FileMode) []singletest {
+	out := make([]singletest, 0, len(modes))
+	for _, mode := range modes {
+		out = append(out, singletest{filename: "blank", modified: time.Time{}, isdir: dir, size: 0, mode: mode})
 	}
 	return out
 }
@@ -412,6 +421,16 @@ func TestFilesize(t *testing.T) {
 	})
 }
 
+func TestMode(t *testing.T) {
+	testmatch(t, []testholder{
+		{
+			mode: fs.FileMode(0755),
+			good: modeonly(false, fs.FileMode(0755)),
+			bad:  modeonly(false, fs.FileMode(0644)),
+		},
+	})
+}
+
 func TestFilterMultipleParameters(t *testing.T) {
 	y, m, d := now.Date()
 	threepm := time.Date(y, m, d, 15, 0, 0, 0, time.Local)
@@ -529,13 +548,41 @@ func TestFilterMultipleParameters(t *testing.T) {
 				},
 			},
 		},
+		{
+			mode:         fs.FileMode(0600),
+			ignorehidden: true,
+			good: []singletest{
+				{
+					mode:     fs.FileMode(0600),
+					filename: "hello.txt",
+				},
+				{
+					mode:     fs.FileMode(0600),
+					filename: "main.go",
+				},
+			},
+			bad: []singletest{
+				{
+					mode:     fs.FileMode(0600),
+					filename: ".bashrc",
+				},
+				{
+					mode:     fs.FileMode(0644),
+					filename: "hello.txt",
+				},
+				{
+					mode:     fs.FileMode(0644),
+					filename: "main.go",
+				},
+			},
+		},
 	})
 }
 
 func TestFilterBlank(t *testing.T) {
 	var f *filter.Filter
 	t.Run("new", func(t *testing.T) {
-		f, _ = filter.New("", "", "", "", "", "", "", false, false, false, "0", "0")
+		f, _ = filter.New("", "", "", "", "", "", "", false, false, false, "0", "0", 0)
 		if !f.Blank() {
 			t.Fatalf("filter isn't blank? %s", f)
 		}
@@ -587,6 +634,9 @@ func TestFilterNotBlank(t *testing.T) {
 			{
 				ignorehidden: true,
 			},
+			{
+				mode: fs.FileMode(0644),
+			},
 		}
 	)
 
@@ -595,7 +645,7 @@ func TestFilterNotBlank(t *testing.T) {
 			f, _ = filter.New(
 				tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 				tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
-				tester.ignorehidden, tester.minsize, tester.maxsize,
+				tester.ignorehidden, tester.minsize, tester.maxsize, tester.mode,
 				tester.filenames...,
 			)
 			if f.Blank() {

@@ -99,7 +99,7 @@ func testmatch(t *testing.T, testers []testholder) {
 	}
 }
 
-func blanktime(dir bool, names ...string) []singletest {
+func nameonly(dir bool, names ...string) []singletest {
 	out := make([]singletest, 0, len(names))
 	for _, name := range names {
 		out = append(out, singletest{filename: name, modified: time.Time{}, isdir: dir, size: 0})
@@ -107,7 +107,7 @@ func blanktime(dir bool, names ...string) []singletest {
 	return out
 }
 
-func blankname(dir bool, times ...time.Time) []singletest {
+func timeonly(dir bool, times ...time.Time) []singletest {
 	out := make([]singletest, 0, len(times))
 	for _, time := range times {
 		out = append(out, singletest{filename: "blank.txt", modified: time, isdir: dir, size: 0})
@@ -127,43 +127,43 @@ func TestFilterOn(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			on:   "2024-02-14",
-			good: blankname(false, time.Date(2024, 2, 14, 12, 0, 0, 0, time.Local)),
-			bad:  blankname(false, now, now.Add(time.Hour*72), now.Add(-time.Hour*18)),
+			good: timeonly(false, time.Date(2024, 2, 14, 12, 0, 0, 0, time.Local)),
+			bad:  timeonly(false, now, now.Add(time.Hour*72), now.Add(-time.Hour*18)),
 		},
 		{
 			on:   "yesterday",
-			good: blankname(false, yesterday),
-			bad:  blankname(false, now, oneweekago, onemonthago, oneyearago, twoweeksago, twomonthsago, twoyearsago),
+			good: timeonly(false, yesterday),
+			bad:  timeonly(false, now, oneweekago, onemonthago, oneyearago, twoweeksago, twomonthsago, twoyearsago),
 		},
 		{
 			on:   "one week ago",
-			good: blankname(false, oneweekago),
-			bad:  blankname(false, now),
+			good: timeonly(false, oneweekago),
+			bad:  timeonly(false, now),
 		},
 		{
 			on:   "one month ago",
-			good: blankname(false, onemonthago),
-			bad:  blankname(false, now),
+			good: timeonly(false, onemonthago),
+			bad:  timeonly(false, now),
 		},
 		{
 			on:   "two months ago",
-			good: blankname(false, twomonthsago),
-			bad:  blankname(false, now),
+			good: timeonly(false, twomonthsago),
+			bad:  timeonly(false, now),
 		},
 		{
 			on:   "four months ago",
-			good: blankname(false, fourmonthsago),
-			bad:  blankname(false, now),
+			good: timeonly(false, fourmonthsago),
+			bad:  timeonly(false, now),
 		},
 		{
 			on:   "one year ago",
-			good: blankname(false, oneyearago),
-			bad:  blankname(false, now),
+			good: timeonly(false, oneyearago),
+			bad:  timeonly(false, now),
 		},
 		{
 			on:   "four years ago",
-			good: blankname(false, fouryearsago),
-			bad:  blankname(false, now),
+			good: timeonly(false, fouryearsago),
+			bad:  timeonly(false, now),
 		},
 	})
 }
@@ -172,43 +172,43 @@ func TestFilterAfter(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			after: "2020-02-14",
-			good:  blankname(false, time.Date(2024, 3, 14, 12, 0, 0, 0, time.Local), now, yesterday),
-			bad:   blankname(false, time.Date(2018, 2, 14, 12, 0, 0, 0, time.Local)),
+			good:  timeonly(false, time.Date(2024, 3, 14, 12, 0, 0, 0, time.Local), now, yesterday),
+			bad:   timeonly(false, time.Date(2018, 2, 14, 12, 0, 0, 0, time.Local)),
 		},
 		{
 			after: "yesterday",
-			good:  blankname(false, yesterday, yesterday.AddDate(1, 0, 0), now, now.AddDate(0, 3, 0)),
-			bad:   blankname(false, yesterday.AddDate(-1, 0, 0), yesterday.AddDate(0, 0, -1), ereyesterday),
+			good:  timeonly(false, yesterday, yesterday.AddDate(1, 0, 0), now, now.AddDate(0, 3, 0)),
+			bad:   timeonly(false, yesterday.AddDate(-1, 0, 0), yesterday.AddDate(0, 0, -1), ereyesterday),
 		},
 		{
 			after: "one week ago",
-			good:  blankname(false, now),
-			bad:   blankname(false, oneweekago.AddDate(0, 0, -1)),
+			good:  timeonly(false, now),
+			bad:   timeonly(false, oneweekago.AddDate(0, 0, -1)),
 		},
 		{
 			after: "one month ago",
-			good:  blankname(false, now, oneweekago, twoweeksago),
-			bad:   blankname(false, onemonthago, twomonthsago, fourmonthsago, oneyearago),
+			good:  timeonly(false, now, oneweekago, twoweeksago),
+			bad:   timeonly(false, onemonthago, twomonthsago, fourmonthsago, oneyearago),
 		},
 		{
 			after: "two months ago",
-			good:  blankname(false, now, onemonthago, oneweekago),
-			bad:   blankname(false, twomonthsago, oneyearago, fourmonthsago),
+			good:  timeonly(false, now, onemonthago, oneweekago),
+			bad:   timeonly(false, twomonthsago, oneyearago, fourmonthsago),
 		},
 		{
 			after: "four months ago",
-			good:  blankname(false, now, oneweekago, onemonthago, twoweeksago, twomonthsago, onemonthago),
-			bad:   blankname(false, fourmonthsago, oneyearago),
+			good:  timeonly(false, now, oneweekago, onemonthago, twoweeksago, twomonthsago, onemonthago),
+			bad:   timeonly(false, fourmonthsago, oneyearago),
 		},
 		{
 			after: "one year ago",
-			good:  blankname(false, now, onemonthago, twomonthsago, fourmonthsago),
-			bad:   blankname(false, oneyearago, fouryearsago, twoyearsago),
+			good:  timeonly(false, now, onemonthago, twomonthsago, fourmonthsago),
+			bad:   timeonly(false, oneyearago, fouryearsago, twoyearsago),
 		},
 		{
 			after: "four years ago",
-			good:  blankname(false, now, twoyearsago, onemonthago, fourmonthsago),
-			bad:   blankname(false, fouryearsago, fouryearsago.AddDate(-1, 0, 0)),
+			good:  timeonly(false, now, twoyearsago, onemonthago, fourmonthsago),
+			bad:   timeonly(false, fouryearsago, fouryearsago.AddDate(-1, 0, 0)),
 		},
 	})
 }
@@ -217,43 +217,43 @@ func TestFilterBefore(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			before: "2024-02-14",
-			good:   blankname(false, time.Date(2020, 2, 14, 12, 0, 0, 0, time.Local), time.Date(1989, 8, 13, 18, 53, 0, 0, time.Local)),
-			bad:    blankname(false, now, now.AddDate(0, 0, 10), now.AddDate(0, -2, 0)),
+			good:   timeonly(false, time.Date(2020, 2, 14, 12, 0, 0, 0, time.Local), time.Date(1989, 8, 13, 18, 53, 0, 0, time.Local)),
+			bad:    timeonly(false, now, now.AddDate(0, 0, 10), now.AddDate(0, -2, 0)),
 		},
 		{
 			before: "yesterday",
-			good:   blankname(false, onemonthago, oneweekago, oneyearago),
-			bad:    blankname(false, now, now.AddDate(0, 0, 1)),
+			good:   timeonly(false, onemonthago, oneweekago, oneyearago),
+			bad:    timeonly(false, now, now.AddDate(0, 0, 1)),
 		},
 		{
 			before: "one week ago",
-			good:   blankname(false, onemonthago, oneyearago, twoweeksago),
-			bad:    blankname(false, yesterday, now),
+			good:   timeonly(false, onemonthago, oneyearago, twoweeksago),
+			bad:    timeonly(false, yesterday, now),
 		},
 		{
 			before: "one month ago",
-			good:   blankname(false, oneyearago, twomonthsago),
-			bad:    blankname(false, oneweekago, yesterday, now),
+			good:   timeonly(false, oneyearago, twomonthsago),
+			bad:    timeonly(false, oneweekago, yesterday, now),
 		},
 		{
 			before: "two months ago",
-			good:   blankname(false, fourmonthsago, oneyearago),
-			bad:    blankname(false, onemonthago, oneweekago, yesterday, now),
+			good:   timeonly(false, fourmonthsago, oneyearago),
+			bad:    timeonly(false, onemonthago, oneweekago, yesterday, now),
 		},
 		{
 			before: "four months ago",
-			good:   blankname(false, oneyearago, twoyearsago, fouryearsago),
-			bad:    blankname(false, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:   timeonly(false, oneyearago, twoyearsago, fouryearsago),
+			bad:    timeonly(false, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 		{
 			before: "one year ago",
-			good:   blankname(false, twoyearsago, fouryearsago),
-			bad:    blankname(false, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:   timeonly(false, twoyearsago, fouryearsago),
+			bad:    timeonly(false, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 		{
 			before: "four years ago",
-			good:   blankname(false, fouryearsago.AddDate(-1, 0, 0), fouryearsago.AddDate(-4, 0, 0)),
-			bad:    blankname(false, oneyearago, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:   timeonly(false, fouryearsago.AddDate(-1, 0, 0), fouryearsago.AddDate(-4, 0, 0)),
+			bad:    timeonly(false, oneyearago, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 	})
 }
@@ -262,13 +262,13 @@ func TestFilterMatch(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			pattern: "[Tt]est",
-			good:    blanktime(false, "test", "Test"),
-			bad:     blanktime(false, "TEST", "tEst", "tEST", "TEst"),
+			good:    nameonly(false, "test", "Test"),
+			bad:     nameonly(false, "TEST", "tEst", "tEST", "TEst"),
 		},
 		{
 			pattern: "^h.*o$",
-			good:    blanktime(false, "hello", "hippo", "how about some pasta with alfredo"),
-			bad:     blanktime(false, "hi", "test", "hellO", "Hello", "oh hello there"),
+			good:    nameonly(false, "hello", "hippo", "how about some pasta with alfredo"),
+			bad:     nameonly(false, "hi", "test", "hellO", "Hello", "oh hello there"),
 		},
 	})
 }
@@ -277,23 +277,23 @@ func TestFilterGlob(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			glob: "*.txt",
-			good: blanktime(false, "test.txt", "alsotest.txt"),
-			bad:  blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			good: nameonly(false, "test.txt", "alsotest.txt"),
+			bad:  nameonly(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
 		},
 		{
 			glob: "*.tar.*",
-			good: blanktime(false, "test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
-			bad:  blanktime(false, "test.tar", "test.txt", "test.targz", "test.tgz"),
+			good: nameonly(false, "test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
+			bad:  nameonly(false, "test.tar", "test.txt", "test.targz", "test.tgz"),
 		},
 		{
 			glob: "pot*o",
-			good: blanktime(false, "potato", "potdonkeyo", "potesto"),
-			bad:  blanktime(false, "salad", "test", "alsotest"),
+			good: nameonly(false, "potato", "potdonkeyo", "potesto"),
+			bad:  nameonly(false, "salad", "test", "alsotest"),
 		},
 		{
 			glob: "t?st",
-			good: blanktime(false, "test", "tast", "tfst", "tnst"),
-			bad:  blanktime(false, "best", "fast", "most", "past"),
+			good: nameonly(false, "test", "tast", "tfst", "tnst"),
+			bad:  nameonly(false, "best", "fast", "most", "past"),
 		},
 	})
 }
@@ -302,13 +302,13 @@ func TestFilterUnMatch(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			unpattern: "^ss_.*\\.zip",
-			good:      blanktime(false, "hello.zip", "ss_potato.png", "sss.zip"),
-			bad:       blanktime(false, "ss_ost_flac.zip", "ss_guide.zip", "ss_controls.zip"),
+			good:      nameonly(false, "hello.zip", "ss_potato.png", "sss.zip"),
+			bad:       nameonly(false, "ss_ost_flac.zip", "ss_guide.zip", "ss_controls.zip"),
 		},
 		{
 			unpattern: "^h.*o$",
-			good:      blanktime(false, "hi", "test", "hellO", "Hello", "oh hello there"),
-			bad:       blanktime(false, "hello", "hippo", "how about some pasta with alfredo"),
+			good:      nameonly(false, "hi", "test", "hellO", "Hello", "oh hello there"),
+			bad:       nameonly(false, "hello", "hippo", "how about some pasta with alfredo"),
 		},
 	})
 }
@@ -317,23 +317,23 @@ func TestFilterUnGlob(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			unglob: "*.txt",
-			good:   blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
-			bad:    blanktime(false, "test.txt", "alsotest.txt"),
+			good:   nameonly(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			bad:    nameonly(false, "test.txt", "alsotest.txt"),
 		},
 		{
 			unglob: "*.tar.*",
-			good:   blanktime(false, "test.tar", "test.txt", "test.targz", "test.tgz"),
-			bad:    blanktime(false, "test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
+			good:   nameonly(false, "test.tar", "test.txt", "test.targz", "test.tgz"),
+			bad:    nameonly(false, "test.tar.gz", "test.tar.xz", "test.tar.zst", "test.tar.bz2"),
 		},
 		{
 			unglob: "pot*o",
-			good:   blanktime(false, "salad", "test", "alsotest"),
-			bad:    blanktime(false, "potato", "potdonkeyo", "potesto"),
+			good:   nameonly(false, "salad", "test", "alsotest"),
+			bad:    nameonly(false, "potato", "potdonkeyo", "potesto"),
 		},
 		{
 			unglob: "t?st",
-			good:   blanktime(false, "best", "fast", "most", "past"),
-			bad:    blanktime(false, "test", "tast", "tfst", "tnst"),
+			good:   nameonly(false, "best", "fast", "most", "past"),
+			bad:    nameonly(false, "test", "tast", "tfst", "tnst"),
 		},
 	})
 }
@@ -342,18 +342,18 @@ func TestFilterFilenames(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			filenames: []string{"test.txt", "alsotest.txt"},
-			good:      blanktime(false, "test.txt", "alsotest.txt"),
-			bad:       blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
+			good:      nameonly(false, "test.txt", "alsotest.txt"),
+			bad:       nameonly(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text"),
 		},
 		{
 			filenames: []string{"test.md", "test.txt"},
-			good:      blanktime(false, "test.txt", "test.md"),
-			bad:       blanktime(false, "alsotest.txt", "test.go", "test.tar.gz", "testxt", "test.text"),
+			good:      nameonly(false, "test.txt", "test.md"),
+			bad:       nameonly(false, "alsotest.txt", "test.go", "test.tar.gz", "testxt", "test.text"),
 		},
 		{
 			filenames: []string{"hello.world"},
-			good:      blanktime(false, "hello.world"),
-			bad:       blanktime(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text", "helloworld", "Hello.world"),
+			good:      nameonly(false, "hello.world"),
+			bad:       nameonly(false, "test.md", "test.go", "test.tar.gz", "testxt", "test.text", "helloworld", "Hello.world"),
 		},
 	})
 }
@@ -362,8 +362,8 @@ func TestFilterFilesOnly(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			filesonly: true,
-			good:      blanktime(false, "test", "hellowold.txt", "test.md", "test.jpg"),
-			bad:       blanktime(true, "test", "alsotest", "helloworld"),
+			good:      nameonly(false, "test", "hellowold.txt", "test.md", "test.jpg"),
+			bad:       nameonly(true, "test", "alsotest", "helloworld"),
 		},
 	})
 }
@@ -372,13 +372,13 @@ func TestFilterDirsOnly(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			dirsonly: true,
-			good:     blanktime(true, "test", "alsotest", "helloworld"),
-			bad:      blanktime(false, "test", "hellowold.txt", "test.md", "test.jpg"),
+			good:     nameonly(true, "test", "alsotest", "helloworld"),
+			bad:      nameonly(false, "test", "hellowold.txt", "test.md", "test.jpg"),
 		},
 		{
 			dirsonly: true,
-			good:     blankname(true, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
-			bad:      blankname(false, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			good:     timeonly(true, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
+			bad:      timeonly(false, fourmonthsago, twomonthsago, onemonthago, oneweekago, yesterday, now),
 		},
 	})
 }
@@ -387,12 +387,12 @@ func TestFilterShowHidden(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			ignorehidden: true,
-			good:         append(blanktime(true, "test", "alsotest", "helloworld"), blanktime(false, "test", "alsotest", "helloworld")...),
-			bad:          append(blanktime(true, ".test", ".alsotest", ".helloworld"), blanktime(false, ".test", ".alsotest", ".helloworld")...),
+			good:         append(nameonly(true, "test", "alsotest", "helloworld"), nameonly(false, "test", "alsotest", "helloworld")...),
+			bad:          append(nameonly(true, ".test", ".alsotest", ".helloworld"), nameonly(false, ".test", ".alsotest", ".helloworld")...),
 		},
 		{
 			ignorehidden: false,
-			good:         append(blanktime(true, "test", "alsotest", ".helloworld"), blanktime(false, "test", "alsotest", ".helloworld")...),
+			good:         append(nameonly(true, "test", "alsotest", ".helloworld"), nameonly(false, "test", "alsotest", ".helloworld")...),
 		},
 	})
 }
@@ -455,8 +455,8 @@ func TestFilterMultipleParameters(t *testing.T) {
 			on:     "today",
 			after:  "two weeks ago",
 			before: "one week ago",
-			good:   blankname(false, now, twoam, sevenam, threepm, tenpm),
-			bad:    blankname(false, yesterday, oneweekago, onemonthago, oneyearago),
+			good:   timeonly(false, now, twoam, sevenam, threepm, tenpm),
+			bad:    timeonly(false, yesterday, oneweekago, onemonthago, oneyearago),
 		},
 		{
 			unpattern: ".*\\.(jpg|png)",
@@ -474,7 +474,7 @@ func TestFilterMultipleParameters(t *testing.T) {
 		{
 			filesonly: true,
 			unglob:    "*.txt",
-			good:      blanktime(false, "test.md", "test.jpg", "test.png"),
+			good:      nameonly(false, "test.md", "test.jpg", "test.png"),
 			bad: []singletest{
 				{
 					filename: "test",
@@ -493,7 +493,7 @@ func TestFilterMultipleParameters(t *testing.T) {
 		{
 			dirsonly: true,
 			pattern:  "w(or|ea)ld",
-			good:     blanktime(true, "hello world", "high weald"),
+			good:     nameonly(true, "hello world", "high weald"),
 			bad: []singletest{
 				{
 					filename: "hello_world.txt",

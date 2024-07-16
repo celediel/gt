@@ -414,10 +414,11 @@ var (
 
 	listFlags = []cli.Flag{
 		&cli.BoolFlag{
-			Name:        "non-interactive",
-			Usage:       "list files and quit",
-			Aliases:     []string{"n"},
-			Destination: &ni,
+			Name:               "non-interactive",
+			Usage:              "list files and quit",
+			Aliases:            []string{"n"},
+			Destination:        &ni,
+			DisableDefaultText: true,
 		},
 	}
 

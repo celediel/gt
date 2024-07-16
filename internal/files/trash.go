@@ -96,7 +96,6 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 			}
 
 			if f.Match(info) {
-				log.Debugf("%s: deleted on %s", filename, date.Format(trash_info_date_fmt))
 				files = append(files, TrashInfo{
 					name:      filename,
 					path:      trashedpath,
@@ -106,8 +105,6 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 					isdir:     info.IsDir(),
 					filesize:  info.Size(),
 				})
-			} else {
-				log.Debugf("(ignored) %s: deleted on %s", filename, date.Format(trash_info_date_fmt))
 			}
 
 		}

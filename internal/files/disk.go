@@ -126,21 +126,14 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 		name := d.Name()
 		info, _ := d.Info()
 		if f.Match(info) {
-			log.Debugf("found matching file: %s %s", name, info.ModTime())
-			i, err := os.Stat(p)
-			if err != nil {
-				log.Debugf("error in file stat: %s", err)
-				return nil
-			}
 			files = append(files, DiskFile{
 				path:     p,
 				name:     name,
-				filesize: i.Size(),
-				modified: i.ModTime(),
-				isdir:    i.IsDir(),
+				filesize: info.Size(),
+				modified: info.ModTime(),
+				isdir:    info.IsDir(),
+				mode:     info.Mode(),
 			})
-		} else {
-			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
 		}
 		return nil
 	})
@@ -171,7 +164,6 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 		path := filepath.Dir(filepath.Join(dir, name))
 
 		if f.Match(info) {
-			log.Debugf("found matching file: %s %s", name, info.ModTime())
 			files = append(files, DiskFile{
 				name:     name,
 				path:     filepath.Join(path, name),
@@ -179,8 +171,6 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 				filesize: info.Size(),
 				isdir:    info.IsDir(),
 			})
-		} else {
-			log.Debugf("ignoring file %s (%s)", name, info.ModTime())
 		}
 	}
 	return

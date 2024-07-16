@@ -59,62 +59,76 @@ func (f *Filter) Match(info fs.FileInfo) bool {
 	// on or before/after, not both
 	if !f.on.IsZero() {
 		if !same_day(f.on, modified) {
+			log.Debugf("%s: %s isn't on %s, bye!", filename, modified, f.on)
 			return false
 		}
 	} else {
 		if !f.after.IsZero() && f.after.After(modified) {
+			log.Debugf("%s: %s isn't after %s, bye!", filename, modified, f.after)
 			return false
 		}
 		if !f.before.IsZero() && f.before.Before(modified) {
+			log.Debugf("%s: %s isn't before %s, bye!", filename, modified, f.before)
 			return false
 		}
 	}
 
 	if f.has_regex() && !f.matcher.MatchString(filename) {
+		log.Debugf("%s doesn't match `%s`, bye!", filename, f.matcher.String())
 		return false
 	}
 
 	if f.glob != "" {
 		if match, err := filepath.Match(f.glob, filename); err != nil || !match {
+			log.Debugf("%s doesn't match `%s`, bye!", filename, f.glob)
 			return false
 		}
 	}
 
 	if f.has_unregex() && f.unmatcher.MatchString(filename) {
+		log.Debugf("%s matches `%s`, bye!", filename, f.unmatcher.String())
 		return false
 	}
 
 	if f.unglob != "" {
 		if match, err := filepath.Match(f.unglob, filename); err != nil || match {
+			log.Debugf("%s matches `%s`, bye!", filename, f.unglob)
 			return false
 		}
 	}
 
 	if len(f.filenames) > 0 && !slices.Contains(f.filenames, filename) {
+		log.Debugf("%s isn't in %v, bye!", filename, f.filenames)
 		return false
 	}
 
 	if f.filesonly && isdir {
+		log.Debugf("%s is dir, bye!", filename)
 		return false
 	}
 
 	if f.dirsonly && !isdir {
+		log.Debugf("%s is file, bye!", filename)
 		return false
 	}
 
 	if f.ignorehidden && strings.HasPrefix(filename, ".") {
+		log.Debugf("%s is hidden, bye!", filename)
 		return false
 	}
 
 	if f.maxsize != 0 && f.maxsize < size {
+		log.Debugf("%s is larger than %d, bye!", filename, f.maxsize)
 		return false
 	}
 
 	if f.minsize != 0 && f.minsize > size {
+		log.Debugf("%s is smaller than %d, bye!", filename, f.minsize)
 		return false
 	}
 
 	// okay it was good
+	log.Debugf("%s modified:'%s' dir:'%T' mode:'%s' was a good one!", filename, modified, isdir, mode)
 	return true
 }
 

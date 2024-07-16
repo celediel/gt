@@ -282,7 +282,7 @@ func (m model) header() string {
 	default:
 		mode = m.mode.String()
 		if m.workdir != "" {
-			mode += fmt.Sprintf(" in %s ", dirs.UnExpand(m.workdir))
+			mode += fmt.Sprintf(" in %s ", dirs.UnExpand(m.workdir, ""))
 		}
 	}
 	mode += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
@@ -322,7 +322,7 @@ func (m model) selectedFiles() (outfile files.Files) {
 	return false
 } */
 
-func newRow(file files.File) table.Row {
+func newRow(file files.File, workdir string) table.Row {
 	var t, b string
 	t = humanize.Time(file.Date())
 	if file.IsDir() {
@@ -332,7 +332,7 @@ func newRow(file files.File) table.Row {
 	}
 	return table.Row{
 		dirs.UnEscape(file.Name()),
-		dirs.UnExpand(filepath.Dir(file.Path())),
+		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
 		t,
 		b,
 	}
@@ -340,7 +340,7 @@ func newRow(file files.File) table.Row {
 
 func (m *model) freshRows(preselected bool) (rows []table.Row) {
 	for _, f := range m.files {
-		r := newRow(f)
+		r := newRow(f, m.workdir)
 
 		if !m.readonly {
 			r = append(r, getCheck(preselected))
@@ -477,7 +477,7 @@ func (m *model) sort() {
 	slices.SortStableFunc(m.files, m.sorting.Sorter())
 	var rows []table.Row
 	for _, file := range m.files {
-		r := newRow(file)
+		r := newRow(file, m.workdir)
 		if !m.readonly {
 			r = append(r, getCheck(m.selected[file.String()]))
 		}

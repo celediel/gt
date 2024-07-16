@@ -180,7 +180,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	if m.once {
-		return m.quit(true)
+		return m.quit(m.readonly)
 	}
 
 	switch msg := msg.(type) {

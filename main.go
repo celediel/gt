@@ -536,7 +536,13 @@ func confirmTrash(fs files.Files) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("trashed %d files\n", trashed)
+		var f string
+		if trashed == 1 {
+			f = "file"
+		} else {
+			f = "files"
+		}
+		fmt.Printf("trashed %d %s\n", trashed, f)
 	} else {
 		fmt.Printf("not doing anything\n")
 		return nil

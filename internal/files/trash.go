@@ -84,6 +84,7 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trash_info_ext, "", 1)
 			info, err := os.Stat(trashedpath)
 			if err != nil {
+				// TODO: do something about it
 				log.Errorf("error reading %s: %s", trashedpath, err)
 				return nil
 			}

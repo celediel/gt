@@ -4,6 +4,7 @@ set -l commands list ls trash tr clean cl restore re
 set -l already_in_trash_commands list ls clean cl restore re
 set -l trash_commands trash tr
 set -l list_commands list ls
+set -l clean_restore_commands clean cl restore re
 set -l log_levels debug info warn error fatal
 
 # commands
@@ -25,9 +26,9 @@ complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l not-glob -s G -
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l files-only -s F -d "operate on files only"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l dirs-only -s D -d "operate on dirs only"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l hidden -s H -d "operate on hidden files"
-complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l before -s b -d "operate on files before date"
-complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l after -s a -d "operate on files after date"
-complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l on -s o -d "operate on files on date"
+complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l before -s B -d "operate on files before date"
+complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l after -s A -d "operate on files after date"
+complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l on -s O -d "operate on files on date"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l min-size -s N -d "operate on files larger than size"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l max-size -s X -d "operate on files smaller than size"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l mode -s x -d "operate on files matching mode"
@@ -39,5 +40,8 @@ complete -c gt -rf -n "__fish_seen_subcommand_from $trash_commands" -l work-dir 
 # list flags
 complete -c gt -rf -n "__fish_seen_subcommand_from $list_commands" -l non-interactive -s n -d "list files and quit"
 
+# clean / restore flags
+complete -c gt -rf -n "__fish_seen_subcommand_from $clean_restore_commands" -l all -s a -d "clean / restore all files"
+
 # list / clean / restore flags
-complete -c gt -rf -n "__fish_seen_subcommand_from $already_in_trash_commands" -l original-path -s O -d "operate on files trashed from this directory"
+complete -c gt -rf -n "__fish_seen_subcommand_from $already_in_trash_commands" -l original-path -s o -d "operate on files trashed from this directory"

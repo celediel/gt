@@ -82,9 +82,8 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 
 			filename := filepath.Base(basepath)
 			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trash_info_ext, "", 1)
-			info, err := os.Stat(trashedpath)
+			info, err := os.Lstat(trashedpath)
 			if err != nil {
-				// TODO: do something about it
 				log.Errorf("error reading %s: %s", trashedpath, err)
 				return nil
 			}
@@ -130,7 +129,7 @@ func Restore(files Files) (restored int, err error) {
 		var outpath string = dirs.UnEscape(file.ogpath)
 		var cancel bool
 		log.Infof("restoring %s back to %s\n", file.name, outpath)
-		if _, e := os.Stat(outpath); e == nil {
+		if _, e := os.Lstat(outpath); e == nil {
 			outpath, cancel = promptNewPath(outpath)
 		}
 
@@ -167,7 +166,7 @@ func Remove(files Files) (removed int, err error) {
 
 		log.Infof("removing %s permanently forever!!!", file.name)
 		if err = os.Remove(file.path); err != nil {
-			if i, e := os.Stat(file.path); e == nil && i.IsDir() {
+			if i, e := os.Lstat(file.path); e == nil && i.IsDir() {
 				err = os.RemoveAll(file.path)
 				if err != nil {
 					return removed, err

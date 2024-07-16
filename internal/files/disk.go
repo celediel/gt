@@ -40,7 +40,7 @@ func (f DiskFile) String() string {
 }
 
 func NewDisk(path string) (DiskFile, error) {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if err != nil {
 		return DiskFile{}, err
 	}

@@ -426,7 +426,7 @@ func (m *model) selectAll() {
 	}
 
 	m.selected = map[string]bool{}
-	for i := range len(m.table.Rows()) {
+	for i := range m.table.Rows() {
 		m.selected[m.files[i].String()] = true
 	}
 	m.updateRows(true)

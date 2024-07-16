@@ -8,17 +8,17 @@ import (
 
 const sep = string(os.PathSeparator)
 
+var (
+	home   string = os.Getenv("HOME")
+	pwd, _        = os.Getwd()
+)
+
 // UnExpand unexpands some directory shortcuts
 //
 // $HOME -> ~
 // $PWD -> .
 // workdir -> /
 func UnExpand(dir, workdir string) (outdir string) {
-	var (
-		home   string = os.Getenv("HOME")
-		pwd, _        = os.Getwd()
-	)
-
 	if dir != "" {
 		outdir = cleanDir(dir, pwd)
 	}

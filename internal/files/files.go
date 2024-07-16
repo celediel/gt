@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const string_format = "%s %s %s %d %t"
-
 type File interface {
 	Name() string
 	Path() string

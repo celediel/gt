@@ -1,7 +1,6 @@
 package files
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ type DiskFile struct {
 }
 
 func (f DiskFile) Name() string    { return f.name }
-func (f DiskFile) Path() string    { return filepath.Join(f.path, f.name) }
+func (f DiskFile) Path() string    { return f.path }
 func (f DiskFile) Date() time.Time { return f.modified }
 func (f DiskFile) IsDir() bool     { return f.isdir }
 func (f DiskFile) Filesize() int64 {
@@ -33,7 +32,9 @@ func (f DiskFile) Filesize() int64 {
 }
 
 func (f DiskFile) String() string {
-	return fmt.Sprintf(string_format, f.name, f.path, f.modified.Format(time.UnixDate), f.filesize, f.isdir)
+	// this is unique enough because two files can't be named the same in the same directory
+	// right???
+	return f.name + f.path
 }
 
 func NewDisk(path string) (DiskFile, error) {
@@ -56,7 +57,7 @@ func NewDisk(path string) (DiskFile, error) {
 
 	return DiskFile{
 		name:     name,
-		path:     base_path,
+		path:     filepath.Join(base_path, name),
 		filesize: info.Size(),
 		modified: info.ModTime(),
 		isdir:    info.IsDir(),
@@ -132,7 +133,7 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 				return nil
 			}
 			files = append(files, DiskFile{
-				path:     filepath.Dir(p),
+				path:     p,
 				name:     name,
 				filesize: i.Size(),
 				modified: i.ModTime(),
@@ -173,7 +174,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 			log.Debugf("found matching file: %s %s", name, info.ModTime())
 			files = append(files, DiskFile{
 				name:     name,
-				path:     path,
+				path:     filepath.Join(path, name),
 				modified: info.ModTime(),
 				filesize: info.Size(),
 				isdir:    info.IsDir(),

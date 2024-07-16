@@ -55,7 +55,7 @@ func (t TrashInfo) Filesize() int64 {
 }
 
 func (t TrashInfo) String() string {
-	return fmt.Sprintf(string_format, t.name, t.path, t.trashed.Format(time.UnixDate), t.filesize, t.isdir)
+	return t.name + t.path + t.ogpath + t.trashinfo
 }
 
 func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr error) {

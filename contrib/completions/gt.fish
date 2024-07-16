@@ -29,6 +29,7 @@ complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l after -s a -d "
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l on -s o -d "operate on files on date"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l min-size -s N -d "operate on files larger than size"
 complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l max-size -s X -d "operate on files smaller than size"
+complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l mode -s x -d "operate on files matching mode"
 
 # trash flags
 complete -c gt -rf -n "__fish_seen_subcommand_from $trash_commands" -l recursive -s r -d "recursively trash files"

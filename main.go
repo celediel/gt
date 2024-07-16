@@ -25,8 +25,6 @@ const (
 	appname    string = "gt"
 	appdesc    string = "xdg trash cli"
 	appversion string = "v0.0.1"
-	yes        rune   = 'y'
-	no         rune   = 'n'
 )
 
 var (

@@ -199,12 +199,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.invr):
 			m.invertSelection()
 		case key.Matches(msg, m.keys.clen):
-			if m.mode == modes.Interactive {
+			if m.mode == modes.Interactive && len(m.selected) > 0 {
 				m.mode = modes.Cleaning
 				return m.quit(false)
 			}
 		case key.Matches(msg, m.keys.rstr):
-			if m.mode == modes.Interactive {
+			if m.mode == modes.Interactive && len(m.selected) > 0 {
 				m.mode = modes.Restoring
 				return m.quit(false)
 			}

@@ -3,6 +3,7 @@ package filter
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -49,9 +50,11 @@ func (f *Filter) AddFileNames(filenames ...string) {
 	}
 }
 
-func (f *Filter) Match(filename string, modified time.Time, size int64, isdir bool) bool {
-	// this might be unnessary but w/e
-	filename = filepath.Clean(filename)
+func (f *Filter) Match(info fs.FileInfo) bool {
+	filename := info.Name()
+	modified := info.ModTime()
+	isdir := info.IsDir()
+	size := info.Size()
 
 	// on or before/after, not both
 	if !f.on.IsZero() {

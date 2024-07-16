@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"io/fs"
 	"math"
 	"testing"
 	"time"
@@ -47,7 +48,15 @@ type singletest struct {
 	isdir    bool
 	modified time.Time
 	size     int64
+	mode     fs.FileMode
 }
+
+func (s singletest) Name() string       { return s.filename }
+func (s singletest) Size() int64        { return s.size }
+func (s singletest) Mode() fs.FileMode  { return s.mode }
+func (s singletest) ModTime() time.Time { return s.modified }
+func (s singletest) IsDir() bool        { return s.isdir }
+func (s singletest) Sys() any           { return nil }
 
 func (s singletest) String() string {
 	return fmt.Sprintf("filename:'%s' modified:'%s' size:'%d' isdir:'%t'", s.filename, s.modified, s.size, s.isdir)
@@ -72,7 +81,7 @@ func testmatch(t *testing.T, testers []testholder) {
 
 		for _, tst := range tester.good {
 			t.Run(fmt.Sprintf(testnamefmt+"_good", tst.filename, tst.modified), func(t *testing.T) {
-				if !f.Match(tst.filename, tst.modified, tst.size, tst.isdir) {
+				if !f.Match(tst) {
 					t.Fatalf("(%s) didn't match (%s) but should have", tst, tester)
 				}
 			})
@@ -80,7 +89,7 @@ func testmatch(t *testing.T, testers []testholder) {
 
 		for _, tst := range tester.bad {
 			t.Run(fmt.Sprintf(testnamefmt+"_bad", tst.filename, tst.modified), func(t *testing.T) {
-				if f.Match(tst.filename, tst.modified, tst.size, tst.isdir) {
+				if f.Match(tst) {
 					t.Fatalf("(%s) matched (%s) but shouldn't have", tst, tester)
 				}
 			})

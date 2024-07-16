@@ -85,6 +85,7 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 			info, err := os.Stat(trashedpath)
 			if err != nil {
 				log.Errorf("error reading %s: %s", trashedpath, err)
+				return nil
 			}
 
 			s := s.Key(trash_info_date).Value()

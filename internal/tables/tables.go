@@ -64,11 +64,12 @@ type model struct {
 
 func newModel(fs []files.File, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) model {
 	var (
-		fwidth  int = int(math.Round(float64(width-woffset) * 0.45))
+		// TODO: figure this out dynamically based on longest of each
+		fwidth  int = int(math.Round(float64(width-woffset) * 0.46))
 		owidth  int = int(math.Round(float64(width-woffset) * 0.25))
 		dwidth  int = int(math.Round(float64(width-woffset) * 0.15))
 		swidth  int = int(math.Round(float64(width-woffset) * 0.12))
-		cwidth  int = int(math.Round(float64(width-woffset) * 0.03))
+		cwidth  int = int(math.Round(float64(width-woffset) * 0.02))
 		theight int = min(height-hoffset, len(fs))
 
 		m = model{

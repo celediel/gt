@@ -1,4 +1,4 @@
-package filter
+package filter_test
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"git.burning.moe/celediel/gt/internal/filter"
 )
 
 var (
@@ -65,11 +67,11 @@ func (s singletest) String() string {
 func testmatch(t *testing.T, testers []testholder) {
 	const testnamefmt string = "file %s modified on %s"
 	var (
-		f   *Filter
+		f   *filter.Filter
 		err error
 	)
 	for _, tester := range testers {
-		f, err = New(
+		f, err = filter.New(
 			tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 			tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
 			tester.ignorehidden, tester.minsize, tester.maxsize,
@@ -531,16 +533,16 @@ func TestFilterMultipleParameters(t *testing.T) {
 }
 
 func TestFilterBlank(t *testing.T) {
-	var f *Filter
+	var f *filter.Filter
 	t.Run("new", func(t *testing.T) {
-		f, _ = New("", "", "", "", "", "", "", false, false, false, "0", "0")
+		f, _ = filter.New("", "", "", "", "", "", "", false, false, false, "0", "0")
 		if !f.Blank() {
 			t.Fatalf("filter isn't blank? %s", f)
 		}
 	})
 
 	t.Run("blank", func(t *testing.T) {
-		f = &Filter{}
+		f = &filter.Filter{}
 		if !f.Blank() {
 			t.Fatalf("filter isn't blank? %s", f)
 		}
@@ -549,7 +551,7 @@ func TestFilterBlank(t *testing.T) {
 
 func TestFilterNotBlank(t *testing.T) {
 	var (
-		f       *Filter
+		f       *filter.Filter
 		testers = []testholder{
 			{
 				pattern: "[Ttest]",
@@ -590,7 +592,7 @@ func TestFilterNotBlank(t *testing.T) {
 
 	for _, tester := range testers {
 		t.Run("notblank"+tester.String(), func(t *testing.T) {
-			f, _ = New(
+			f, _ = filter.New(
 				tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 				tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
 				tester.ignorehidden, tester.minsize, tester.maxsize,

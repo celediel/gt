@@ -49,7 +49,9 @@ func SortBySizeReverse(a, b File) int {
 }
 
 func SortByName(a, b File) int {
-	return cmp.Compare(a.Name(), b.Name())
+	an := strings.ToLower(a.Name())
+	bn := strings.ToLower(b.Name())
+	return cmp.Compare(an, bn)
 }
 
 func SortByNameReverse(a, b File) int {

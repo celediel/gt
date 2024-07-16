@@ -3,6 +3,7 @@
 set -l commands list ls trash tr clean cl restore re
 set -l already_in_trash_commands list ls clean cl restore re
 set -l trash_commands trash tr
+set -l list_commands list ls
 set -l log_levels debug info warn error fatal
 
 # commands
@@ -34,6 +35,9 @@ complete -c gt -rf -n "__fish_seen_subcommand_from $commands" -l mode -s x -d "o
 # trash flags
 complete -c gt -rf -n "__fish_seen_subcommand_from $trash_commands" -l recursive -s r -d "recursively trash files"
 complete -c gt -rf -n "__fish_seen_subcommand_from $trash_commands" -l work-dir -s w -d "trash files in specified directory"
+
+# list flags
+complete -c gt -rf -n "__fish_seen_subcommand_from $list_commands" -l non-interactive -s n -d "list files and quit"
 
 # list / clean / restore flags
 complete -c gt -rf -n "__fish_seen_subcommand_from $already_in_trash_commands" -l original-path -s O -d "operate on files trashed from this directory"

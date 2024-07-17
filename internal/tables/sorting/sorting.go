@@ -40,29 +40,29 @@ func (s Sorting) Prev() Sorting {
 func (s Sorting) String() string {
 	switch s {
 	case Name:
-		return "name"
+		return "name ↑"
 	case NameReverse:
-		return "name (r)"
+		return "name ↓"
 	case Date:
-		return "date"
+		return "date ↑"
 	case DateReverse:
-		return "date (r)"
+		return "date ↓"
 	case Path:
-		return "path"
+		return "path ↑"
 	case PathReverse:
-		return "path (r)"
+		return "path ↓"
 	case Size:
-		return "size"
+		return "size ↑"
 	case SizeReverse:
-		return "size (r)"
+		return "size ↓"
 	case Extension:
-		return "extension"
+		return "extension ↑"
 	case ExtensionReverse:
-		return "extension (r)"
+		return "extension ↓"
 	case Directory:
-		return "directories first"
+		return "directories ↑"
 	case DirectoryReverse:
-		return "directories last"
+		return "directories ↓"
 	default:
 		return "0"
 	}

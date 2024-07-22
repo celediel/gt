@@ -51,7 +51,7 @@ func (t TrashInfo) IsDir() bool       { return t.isdir }
 func (t TrashInfo) Mode() fs.FileMode { return t.mode }
 func (t TrashInfo) Filesize() int64 {
 	if t.isdir {
-		return -1
+		return 0
 	}
 	return t.filesize
 }

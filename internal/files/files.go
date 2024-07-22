@@ -42,11 +42,15 @@ func SortByModifiedReverse(a, b File) int {
 }
 
 func SortBySize(a, b File) int {
-	return cmp.Compare(b.Filesize(), a.Filesize())
+	as := getSortingSize(a)
+	bs := getSortingSize(b)
+	return cmp.Compare(bs, as)
 }
 
 func SortBySizeReverse(a, b File) int {
-	return cmp.Compare(a.Filesize(), b.Filesize())
+	as := getSortingSize(a)
+	bs := getSortingSize(b)
+	return cmp.Compare(as, bs)
 }
 
 func SortByName(a, b File) int {
@@ -96,5 +100,13 @@ func SortDirectoriesLast(a, b File) int {
 		return -1
 	} else {
 		return 0
+	}
+}
+
+func getSortingSize(f File) int64 {
+	if f.IsDir() {
+		return -1
+	} else {
+		return f.Filesize()
 	}
 }

@@ -53,6 +53,7 @@ type model struct {
 	table      table.Model
 	keys       keyMap
 	selected   map[string]bool
+	selectsize int64
 	readonly   bool
 	once       bool
 	termheight int
@@ -79,6 +80,7 @@ func newModel(fs []files.File, width, height int, readonly, preselected, once bo
 			termheight: height,
 			mode:       mode,
 			selected:   map[string]bool{},
+			selectsize: 0,
 			files:      fs,
 		}
 	)
@@ -283,12 +285,12 @@ func (m model) header() string {
 	default:
 		mode = m.mode.String()
 		if m.workdir != "" {
-			mode += fmt.Sprintf(" in %s ", dirs.UnExpand(m.workdir, ""))
+			mode += fmt.Sprintf(" in %s", dirs.UnExpand(m.workdir, ""))
 		}
 	}
 	mode += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
 
-	return fmt.Sprintf(" %s %s %d/%d", mode, dot, len(m.selected), len(m.table.Rows()))
+	return fmt.Sprintf(" %s %s %d/%d %s %s", mode, dot, len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
 }
 
 func (m model) footer() string {
@@ -348,6 +350,7 @@ func (m *model) freshRows(preselected bool) (rows []table.Row) {
 		}
 		if preselected {
 			m.selected[f.String()] = true
+			m.selectsize += f.Filesize()
 		}
 		rows = append(rows, r)
 	}
@@ -403,16 +406,19 @@ func (m *model) toggleItem(index int) (selected bool) {
 	}
 
 	name := m.files[index].String()
+	size := m.files[index].Filesize()
 
 	// select the thing
 	if v, ok := m.selected[name]; v && ok {
 		// already selected
 		delete(m.selected, name)
 		selected = false
+		m.selectsize -= size
 	} else {
 		// not selected
 		m.selected[name] = true
 		selected = true
+		m.selectsize += size
 	}
 
 	// update the rows with the state
@@ -426,8 +432,10 @@ func (m *model) selectAll() {
 	}
 
 	m.selected = map[string]bool{}
+	m.selectsize = 0
 	for i := range m.table.Rows() {
 		m.selected[m.files[i].String()] = true
+		m.selectsize += m.files[i].Filesize()
 	}
 	m.updateRows(true)
 }
@@ -438,6 +446,7 @@ func (m *model) unselectAll() {
 	}
 
 	m.selected = map[string]bool{}
+	m.selectsize = 0
 	m.updateRows(false)
 }
 
@@ -450,8 +459,10 @@ func (m *model) invertSelection() {
 
 	for index, row := range m.table.Rows() {
 		name := m.files[index].String()
+		size := m.files[index].Filesize()
 		if v, ok := m.selected[name]; v && ok {
 			delete(m.selected, name)
+			m.selectsize -= size
 			newrows = append(newrows, table.Row{
 				row[0],
 				row[1],
@@ -461,6 +472,7 @@ func (m *model) invertSelection() {
 			})
 		} else {
 			m.selected[name] = true
+			m.selectsize += size
 			newrows = append(newrows, table.Row{
 				row[0],
 				row[1],

@@ -28,7 +28,7 @@ func (f DiskFile) IsDir() bool       { return f.isdir }
 func (f DiskFile) Mode() fs.FileMode { return f.mode }
 func (f DiskFile) Filesize() int64 {
 	if f.isdir {
-		return -1
+		return 0
 	}
 	return f.filesize
 }

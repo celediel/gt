@@ -13,7 +13,6 @@ import (
 	"git.burning.moe/celediel/gt/internal/filter"
 	"git.burning.moe/celediel/gt/internal/prompt"
 
-	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
 	"github.com/dustin/go-humanize"
 	"gitlab.com/tymonx/go-formatter/formatter"
@@ -130,7 +129,7 @@ func Restore(files Files) (restored int, err error) {
 		var cancel bool
 		log.Infof("restoring %s back to %s\n", file.name, outpath)
 		if _, e := os.Lstat(outpath); e == nil {
-			outpath, cancel = promptNewPath(outpath)
+			outpath, cancel = prompt.NewPath(outpath)
 		}
 
 		if cancel {
@@ -157,6 +156,20 @@ func Restore(files Files) (restored int, err error) {
 	return restored, err
 }
 
+func ConfirmRestore(confirm bool, fs Files) error {
+	if !confirm || prompt.YesNo(fmt.Sprintf("restore %d selected files?", len(fs))) {
+		log.Info("doing the thing")
+		restored, err := Restore(fs)
+		if err != nil {
+			return fmt.Errorf("restored %d files before error %s", restored, err)
+		}
+		fmt.Printf("restored %d files\n", restored)
+	} else {
+		fmt.Printf("not doing anything\n")
+	}
+	return nil
+}
+
 func Remove(files Files) (removed int, err error) {
 	for _, maybeFile := range files {
 		file, ok := maybeFile.(TrashInfo)
@@ -181,6 +194,21 @@ func Remove(files Files) (removed int, err error) {
 		removed++
 	}
 	return removed, err
+}
+
+func ConfirmClean(confirm bool, fs Files) error {
+	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(fs))) &&
+		(!confirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(fs)))) {
+		log.Info("gonna remove some files forever")
+		removed, err := Remove(fs)
+		if err != nil {
+			return fmt.Errorf("removed %d files before error %s", removed, err)
+		}
+		fmt.Printf("removed %d files\n", removed)
+	} else {
+		fmt.Printf("not doing anything\n")
+	}
+	return nil
 }
 
 func TrashFile(trashDir, name string) error {
@@ -216,6 +244,32 @@ func TrashFiles(trashDir string, files ...string) (trashed int, err error) {
 		trashed++
 	}
 	return trashed, err
+}
+
+func ConfirmTrash(confirm bool, fs Files, trashDir string) error {
+	if !confirm || prompt.YesNo(fmt.Sprintf("trash %d selected files?", len(fs))) {
+		tfs := make([]string, 0, len(fs))
+		for _, file := range fs {
+			log.Debugf("gonna trash %s", file.Path())
+			tfs = append(tfs, file.Path())
+		}
+
+		trashed, err := TrashFiles(trashDir, tfs...)
+		if err != nil {
+			return err
+		}
+		var f string
+		if trashed == 1 {
+			f = "file"
+		} else {
+			f = "files"
+		}
+		fmt.Printf("trashed %d %s\n", trashed, f)
+	} else {
+		fmt.Printf("not doing anything\n")
+		return nil
+	}
+	return nil
 }
 
 func randomFilename(length int) string {
@@ -255,28 +309,6 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 				log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
 				return new_name, path
 			}
-		}
-	}
-}
-
-func promptNewPath(path string) (string, bool) {
-	for {
-		answer := prompt.AskRune(fmt.Sprintf("file %s exists, overwrite, rename, or cancel?", path), "o/r/c")
-		switch answer {
-		case 'o', 'O':
-			return path, false
-		case 'r', 'R':
-			if err := huh.NewInput().
-				Title("input a new filename").
-				Value(&path).
-				Run(); err != nil {
-				return path, false
-			}
-			if _, e := os.Stat(path); e != nil {
-				return path, false
-			}
-		default:
-			return path, true
 		}
 	}
 }

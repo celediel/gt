@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/charmbracelet/huh"
 	"golang.org/x/term"
 )
 
@@ -37,4 +38,26 @@ func AskRune(prompt, options string) byte {
 	}
 
 	return bytes.ToLower(b)[0]
+}
+
+func NewPath(path string) (string, bool) {
+	for {
+		answer := AskRune(fmt.Sprintf("file %s exists, overwrite, rename, or cancel?", path), "o/r/c")
+		switch answer {
+		case 'o', 'O':
+			return path, false
+		case 'r', 'R':
+			if err := huh.NewInput().
+				Title("input a new filename").
+				Value(&path).
+				Run(); err != nil {
+				return path, false
+			}
+			if _, e := os.Stat(path); e != nil {
+				return path, false
+			}
+		default:
+			return path, true
+		}
+	}
 }

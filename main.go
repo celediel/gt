@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"git.burning.moe/celediel/gt/internal/filemode"
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/filter"
 	"git.burning.moe/celediel/gt/internal/prompt"
@@ -90,7 +91,7 @@ var (
 		)
 
 		if f == nil {
-			md, e := parseMode(m)
+			md, e := filemode.Parse(m)
 			if e != nil {
 				return e
 			}
@@ -118,7 +119,7 @@ var (
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
 		if f == nil {
-			md, e := parseMode(m)
+			md, e := filemode.Parse(m)
 			if e != nil {
 				return e
 			}
@@ -130,7 +131,7 @@ var (
 
 	beforeTrash = func(_ *cli.Context) (err error) {
 		if f == nil {
-			md, e := parseMode(m)
+			md, e := filemode.Parse(m)
 			if e != nil {
 				return e
 			}
@@ -557,18 +558,4 @@ func confirmTrash(confirm bool, fs files.Files) error {
 		return nil
 	}
 	return nil
-}
-
-func parseMode(in string) (fs.FileMode, error) {
-	if in == "" {
-		return fs.FileMode(0), nil
-	}
-	if len(m) == 3 {
-		in = "0" + in
-	}
-	md, e := strconv.ParseUint(in, 8, 64)
-	if e != nil {
-		return 0, e
-	}
-	return fs.FileMode(md), nil
 }

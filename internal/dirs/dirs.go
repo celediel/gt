@@ -13,10 +13,12 @@ var (
 	pwd, _        = os.Getwd()
 )
 
-// UnExpand unexpands some directory shortcuts
+// UnExpand returns dir after expanding some directory shortcuts
 //
 // $HOME -> ~
+//
 // $PWD -> .
+//
 // workdir -> /
 func UnExpand(dir, workdir string) (outdir string) {
 	if dir != "" {

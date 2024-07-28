@@ -60,7 +60,9 @@ func SortByName(a, b File) int {
 }
 
 func SortByNameReverse(a, b File) int {
-	return cmp.Compare(b.Name(), a.Name())
+	an := strings.ToLower(a.Name())
+	bn := strings.ToLower(b.Name())
+	return cmp.Compare(bn, an)
 }
 
 func SortByPath(a, b File) int {

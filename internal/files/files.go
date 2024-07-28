@@ -72,14 +72,14 @@ func SortByPathReverse(a, b File) int {
 }
 
 func SortByExtension(a, b File) int {
-	aext := filepath.Ext(a.Name())
-	bext := filepath.Ext(b.Name())
+	aext := strings.ToLower(filepath.Ext(a.Name()))
+	bext := strings.ToLower(filepath.Ext(b.Name()))
 	return cmp.Compare(aext, bext)
 }
 
 func SortByExtensionReverse(a, b File) int {
-	aext := filepath.Ext(a.Name())
-	bext := filepath.Ext(b.Name())
+	aext := strings.ToLower(filepath.Ext(a.Name()))
+	bext := strings.ToLower(filepath.Ext(b.Name()))
 	return cmp.Compare(bext, aext)
 }
 

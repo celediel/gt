@@ -44,13 +44,13 @@ func SortByModifiedReverse(a, b File) int {
 func SortBySize(a, b File) int {
 	as := getSortingSize(a)
 	bs := getSortingSize(b)
-	return cmp.Compare(bs, as)
+	return cmp.Compare(as, bs)
 }
 
 func SortBySizeReverse(a, b File) int {
 	as := getSortingSize(a)
 	bs := getSortingSize(b)
-	return cmp.Compare(as, bs)
+	return cmp.Compare(bs, as)
 }
 
 func SortByName(a, b File) int {

@@ -222,22 +222,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() (out string) {
-	var (
-		n      string
-		panels []string = []string{
-			style.Render(m.table.View()),
-		}
-	)
-
-	panels = append(panels, m.footer())
+func (m model) View() string {
+	var panels []string
 
 	if m.mode != modes.Listing {
-		panels = append([]string{m.header()}, panels...)
+		panels = append(panels, m.header())
 	}
+	panels = append(panels, style.Render(m.table.View()), m.footer())
 
-	out = lipgloss.JoinVertical(lipgloss.Top, panels...)
-	return out + n
+	return lipgloss.JoinVertical(lipgloss.Top, panels...)
 }
 
 func (m model) showHelp() string {

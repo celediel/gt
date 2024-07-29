@@ -136,7 +136,7 @@ func defaultKeyMap() keyMap {
 		),
 		todo: key.NewBinding(
 			key.WithKeys("a", "ctrl+a"),
-			key.WithHelp("a", "select all"),
+			key.WithHelp("a", "all"),
 		),
 		nada: key.NewBinding(
 			key.WithKeys("n", "ctrl+n"),
@@ -156,11 +156,11 @@ func defaultKeyMap() keyMap {
 		),
 		sort: key.NewBinding(
 			key.WithKeys("s"),
-			key.WithHelp("s", "sort"),
+			key.WithHelp("s/S", "sort"),
 		),
 		rort: key.NewBinding(
 			key.WithKeys("S"),
-			key.WithHelp("S", "change sort (reverse)"),
+			key.WithHelp("S", "sort (reverse)"),
 		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),

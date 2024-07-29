@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"io/fs"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -54,15 +55,11 @@ func SortBySizeReverse(a, b File) int {
 }
 
 func SortByName(a, b File) int {
-	an := strings.ToLower(a.Name())
-	bn := strings.ToLower(b.Name())
-	return cmp.Compare(an, bn)
+	return doNameSort(a, b)
 }
 
 func SortByNameReverse(a, b File) int {
-	an := strings.ToLower(a.Name())
-	bn := strings.ToLower(b.Name())
-	return cmp.Compare(bn, an)
+	return doNameSort(b, a)
 }
 
 func SortByPath(a, b File) int {
@@ -103,6 +100,20 @@ func SortDirectoriesLast(a, b File) int {
 	} else {
 		return 0
 	}
+}
+
+func doNameSort(a, b File) int {
+	an := strings.ToLower(a.Name())
+	bn := strings.ToLower(b.Name())
+	// check if filename is a number
+	abase := strings.Replace(an, filepath.Ext(an), "", 1)
+	bbase := strings.Replace(bn, filepath.Ext(bn), "", 1)
+	ai, aerr := strconv.Atoi(abase)
+	bi, berr := strconv.Atoi(bbase)
+	if aerr == nil && berr == nil {
+		return cmp.Compare(ai, bi)
+	}
+	return cmp.Compare(an, bn)
 }
 
 func getSortingSize(f File) int64 {

@@ -13,9 +13,10 @@ complete -c gt -F -n "not __fish_seen_subcommand_from $commands" -a "trash tr" -
 complete -c gt -f -n "not __fish_seen_subcommand_from $commands" -a "restore re" -d "restore files from trash"
 complete -c gt -f -n "not __fish_seen_subcommand_from $commands" -a "clean cl" -d "clean files from trash"
 
-# flags
+# global flags
 complete -c gt -n "not __fish_seen_subcommand_from $commands" -l help -s h -d "show help"
 complete -c gt -n "not __fish_seen_subcommand_from $commands" -l version -s v -d "show version"
+complete -c gt -n "not __fish_seen_subcommand_from $commands" -l confirm -s c -d "ask for confirmation"
 complete -c gt -n "not __fish_seen_subcommand_from $commands" -l log -s l -d "log level" -fra (string join " " $log_levels)
 
 # everyone flags

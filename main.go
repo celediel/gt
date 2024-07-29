@@ -51,6 +51,8 @@ var (
 			if log.GetLevel() == log.DebugLevel {
 				log.SetReportCaller(true)
 			}
+		} else {
+			log.Errorf("unknown log level '%s' (possible values: debug, info, warn, error, fatal, default: warn)", loglvl)
 		}
 
 		// read the term height and width for tables

@@ -27,17 +27,19 @@ const (
 )
 
 var (
-	loglvl           string
-	f                *filter.Filter
-	o, b, a, g, p, m string
-	sm, lg           string
-	ung, unp         string
-	fo, do, sh, ni   bool
-	askconfirm, all  bool
-	workdir, ogdir   cli.Path
-	recursive        bool
-	termwidth        int
-	termheight       int
+	loglvl                     string
+	fltr                       *filter.Filter
+	onArg, beforeArg, afterArg string
+	globArg, patternArg        string
+	unGlobArg, unPatternArg    string
+	modeArg, minArg, maxArg    string
+	filesOnlyArg, dirsOnlyArg  bool
+	hiddenArg, noInterArg      bool
+	askconfirm, all            bool
+	workdir, ogdir             cli.Path
+	recursive                  bool
+	termwidth                  int
+	termheight                 int
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
@@ -90,12 +92,12 @@ var (
 			err error
 		)
 
-		if f == nil {
-			md, e := filemode.Parse(m)
+		if fltr == nil {
+			md, e := filemode.Parse(modeArg)
 			if e != nil {
 				return e
 			}
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg, md)
+			fltr, err = filter.New(onArg, beforeArg, afterArg, globArg, patternArg, unGlobArg, unPatternArg, filesOnlyArg, dirsOnlyArg, false, minArg, maxArg, md)
 		}
 		if err != nil {
 			return err
@@ -120,13 +122,13 @@ var (
 				mode     modes.Mode
 				err      error
 			)
-			infiles, err = files.FindTrash(trashDir, ogdir, f)
+			infiles, err = files.FindTrash(trashDir, ogdir, fltr)
 			if err != nil {
 				return err
 			}
 			if len(infiles) <= 0 {
 				var msg string
-				if f.Blank() {
+				if fltr.Blank() {
 					msg = "trash is empty"
 				} else {
 					msg = "no files to show"
@@ -164,26 +166,26 @@ var (
 
 	beforeCommands = func(ctx *cli.Context) (err error) {
 		// setup filter
-		if f == nil {
-			md, e := filemode.Parse(m)
+		if fltr == nil {
+			md, e := filemode.Parse(modeArg)
 			if e != nil {
 				return e
 			}
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, false, sm, lg, md, ctx.Args().Slice()...)
+			fltr, err = filter.New(onArg, beforeArg, afterArg, globArg, patternArg, unGlobArg, unPatternArg, filesOnlyArg, dirsOnlyArg, false, minArg, maxArg, md, ctx.Args().Slice()...)
 		}
-		log.Debugf("filter: %s", f.String())
+		log.Debugf("filter: %s", fltr.String())
 		return
 	}
 
 	beforeTrash = func(_ *cli.Context) (err error) {
-		if f == nil {
-			md, e := filemode.Parse(m)
+		if fltr == nil {
+			md, e := filemode.Parse(modeArg)
 			if e != nil {
 				return e
 			}
-			f, err = filter.New(o, b, a, g, p, ung, unp, fo, do, !sh, sm, lg, md)
+			fltr, err = filter.New(onArg, beforeArg, afterArg, globArg, patternArg, unGlobArg, unPatternArg, filesOnlyArg, dirsOnlyArg, !hiddenArg, minArg, maxArg, md)
 		}
-		log.Debugf("filter: %s", f.String())
+		log.Debugf("filter: %s", fltr.String())
 		return
 	}
 
@@ -204,7 +206,7 @@ var (
 				file, e := files.NewDisk(arg)
 				if e != nil || workdir != "" {
 					log.Debugf("%s wasn't really a file", arg)
-					f.AddFileName(arg)
+					fltr.AddFileName(arg)
 					continue
 				}
 				files_to_trash = append(files_to_trash, file)
@@ -213,7 +215,7 @@ var (
 
 			// if none of the args were files, then process find files based on filter
 			if len(files_to_trash) == 0 {
-				fls, err := files.FindDisk(workdir, recursive, f)
+				fls, err := files.FindDisk(workdir, recursive, fltr)
 				if err != nil {
 					return err
 				}
@@ -222,7 +224,7 @@ var (
 					return nil
 				}
 				files_to_trash = append(files_to_trash, fls...)
-				selectall = !f.Blank()
+				selectall = !fltr.Blank()
 			}
 
 			selected, _, err := interactive.Select(files_to_trash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
@@ -248,11 +250,11 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			fls, err := files.FindTrash(trashDir, ogdir, f)
+			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 
 			var msg string
-			log.Debugf("filter '%s' is blark? %t in %s", f, f.Blank(), ogdir)
-			if f.Blank() && ogdir == "" {
+			log.Debugf("filter '%s' is blark? %t in %s", fltr, fltr.Blank(), ogdir)
+			if fltr.Blank() && ogdir == "" {
 				msg = "trash is empty"
 			} else {
 				msg = "no files to show"
@@ -266,7 +268,7 @@ var (
 			}
 
 			// display them
-			_, _, err = interactive.Select(fls, termwidth, termheight, true, false, ni, workdir, modes.Listing)
+			_, _, err = interactive.Select(fls, termwidth, termheight, true, false, noInterArg, workdir, modes.Listing)
 
 			return err
 		},
@@ -282,7 +284,7 @@ var (
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
-			fls, err := files.FindTrash(trashDir, ogdir, f)
+			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Println("no files to restore")
 				return nil
@@ -310,7 +312,7 @@ var (
 		Flags:   slices.Concat(cleanRestoreFlags, alreadyintrashFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(ctx *cli.Context) error {
-			fls, err := files.FindTrash(trashDir, ogdir, f)
+			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Println("no files to clean")
 				return nil
@@ -354,75 +356,75 @@ var (
 			Name:        "match",
 			Usage:       "operate on files matching regex `PATTERN`",
 			Aliases:     []string{"m"},
-			Destination: &p,
+			Destination: &patternArg,
 		},
 		&cli.StringFlag{
 			Name:        "glob",
 			Usage:       "operate on files matching `GLOB`",
 			Aliases:     []string{"g"},
-			Destination: &g,
+			Destination: &globArg,
 		},
 		&cli.StringFlag{
 			Name:        "not-match",
 			Usage:       "operate on files not matching regex `PATTERN`",
 			Aliases:     []string{"M"},
-			Destination: &unp,
+			Destination: &unPatternArg,
 		},
 		&cli.StringFlag{
 			Name:        "not-glob",
 			Usage:       "operate on files not matching `GLOB`",
 			Aliases:     []string{"G"},
-			Destination: &ung,
+			Destination: &unGlobArg,
 		},
 		&cli.StringFlag{
 			Name:        "on",
 			Usage:       "operate on files modified on `DATE`",
 			Aliases:     []string{"O"},
-			Destination: &o,
+			Destination: &onArg,
 		},
 		&cli.StringFlag{
 			Name:        "after",
 			Usage:       "operate on files modified before `DATE`",
 			Aliases:     []string{"A"},
-			Destination: &a,
+			Destination: &afterArg,
 		},
 		&cli.StringFlag{
 			Name:        "before",
 			Usage:       "operate on files modified after `DATE`",
 			Aliases:     []string{"B"},
-			Destination: &b,
+			Destination: &beforeArg,
 		},
 		&cli.BoolFlag{
 			Name:               "files-only",
 			Usage:              "operate on files only",
 			Aliases:            []string{"F"},
 			DisableDefaultText: true,
-			Destination:        &fo,
+			Destination:        &filesOnlyArg,
 		},
 		&cli.BoolFlag{
 			Name:               "dirs-only",
 			Usage:              "operate on directories only",
 			Aliases:            []string{"D"},
 			DisableDefaultText: true,
-			Destination:        &do,
+			Destination:        &dirsOnlyArg,
 		},
 		&cli.StringFlag{
 			Name:        "min-size",
 			Usage:       "operate on files larger than `SIZE`",
 			Aliases:     []string{"N"},
-			Destination: &sm,
+			Destination: &minArg,
 		},
 		&cli.StringFlag{
 			Name:        "max-size",
 			Usage:       "operate on files smaller than `SIZE`",
 			Aliases:     []string{"X"},
-			Destination: &lg,
+			Destination: &maxArg,
 		},
 		&cli.StringFlag{
 			Name:        "mode",
 			Usage:       "operate on files matching mode `MODE`",
 			Aliases:     []string{"x"},
-			Destination: &m,
+			Destination: &modeArg,
 		},
 	}
 
@@ -446,7 +448,7 @@ var (
 			Usage:              "operate on hidden files",
 			Aliases:            []string{"H"},
 			DisableDefaultText: true,
-			Destination:        &sh,
+			Destination:        &hiddenArg,
 		},
 	}
 
@@ -464,7 +466,7 @@ var (
 			Name:               "non-interactive",
 			Usage:              "list files and quit",
 			Aliases:            []string{"n"},
-			Destination:        &ni,
+			Destination:        &noInterArg,
 			DisableDefaultText: true,
 		},
 	}

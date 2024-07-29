@@ -43,6 +43,10 @@ func UnExpand(dir, workdir string) (outdir string) {
 	return
 }
 
+func UnEscape(input string) string {
+	return strings.ReplaceAll(input, "%20", " ")
+}
+
 func cleanDir(dir, pwd string) (out string) {
 	if strings.HasPrefix(dir, ".") {
 		out = filepath.Clean(dir)
@@ -52,8 +56,4 @@ func cleanDir(dir, pwd string) (out string) {
 		out = dir
 	}
 	return
-}
-
-func UnEscape(input string) string {
-	return strings.ReplaceAll(input, "%20", " ")
 }

@@ -325,22 +325,6 @@ func (m model) selectedFiles() (outfile files.Files) {
 	return false
 } */
 
-func newRow(file files.File, workdir string) table.Row {
-	var t, b string
-	t = humanize.Time(file.Date())
-	if file.IsDir() {
-		b = strings.Repeat("─", 3)
-	} else {
-		b = humanize.Bytes(uint64(file.Filesize()))
-	}
-	return table.Row{
-		dirs.UnEscape(file.Name()),
-		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
-		t,
-		b,
-	}
-}
-
 func (m *model) freshRows(preselected bool) (rows []table.Row) {
 	for _, f := range m.files {
 		r := newRow(f, m.workdir)
@@ -511,6 +495,22 @@ func Select(fs files.Files, width, height int, readonly, preselected, once bool,
 		return fs, 0, fmt.Errorf("model isn't the right type?? what has happened")
 	}
 	return m.selectedFiles(), m.mode, nil
+}
+
+func newRow(file files.File, workdir string) table.Row {
+	var t, b string
+	t = humanize.Time(file.Date())
+	if file.IsDir() {
+		b = strings.Repeat("─", 3)
+	} else {
+		b = humanize.Bytes(uint64(file.Filesize()))
+	}
+	return table.Row{
+		dirs.UnEscape(file.Name()),
+		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
+		t,
+		b,
+	}
 }
 
 func getCheck(selected bool) (ourcheck string) {

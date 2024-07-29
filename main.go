@@ -202,7 +202,7 @@ var (
 			var selectall bool
 			for _, arg := range ctx.Args().Slice() {
 				file, e := files.NewDisk(arg)
-				if e != nil {
+				if e != nil || workdir != "" {
 					log.Debugf("%s wasn't really a file", arg)
 					f.AddFileName(arg)
 					continue

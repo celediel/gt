@@ -57,6 +57,7 @@ type model struct {
 	readonly   bool
 	once       bool
 	termheight int
+	termwidth  int
 	mode       modes.Mode
 	sorting    sorting.Sorting
 	workdir    string
@@ -78,6 +79,7 @@ func newModel(fs []files.File, width, height int, readonly, preselected, once bo
 			readonly:   readonly,
 			once:       once,
 			termheight: height,
+			termwidth:  width,
 			mode:       mode,
 			selected:   map[string]bool{},
 			selectsize: 0,
@@ -265,8 +267,9 @@ func (m model) showHelp() string {
 
 func (m model) header() string {
 	var (
-		mode string
-		keys = []string{
+		right, left  string
+		spacer_width int
+		keys         = []string{
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.rstr.Help().Key), darkertext.Render(m.keys.rstr.Help().Desc)),
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.clen.Help().Key), darkertext.Render(m.keys.clen.Help().Desc)),
 		}
@@ -279,18 +282,27 @@ func (m model) header() string {
 		wide_dot = darkesttext.Render(" • ")
 	)
 
+	right = " " // to offset from the table border
 	switch m.mode {
 	case modes.Interactive:
-		mode = strings.Join(keys, wide_dot)
+		right += strings.Join(keys, wide_dot)
 	default:
-		mode = m.mode.String()
+		right += m.mode.String()
 		if m.workdir != "" {
-			mode += fmt.Sprintf(" in %s", dirs.UnExpand(m.workdir, ""))
+			right += fmt.Sprintf(" in %s", dirs.UnExpand(m.workdir, ""))
 		}
 	}
-	mode += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
+	right += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
 
-	return fmt.Sprintf(" %s %s %d/%d %s %s", mode, dot, len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
+	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
+
+	// offset of 2 again because of table border
+	spacer_width = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - 2
+	if spacer_width <= 0 {
+		spacer_width = 1 // always at least one space
+	}
+
+	return fmt.Sprintf("%s%s%s", right, strings.Repeat(" ", spacer_width), left)
 }
 
 func (m model) footer() string {

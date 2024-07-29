@@ -11,8 +11,8 @@ import (
 	"git.burning.moe/celediel/gt/internal/filemode"
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/filter"
-	"git.burning.moe/celediel/gt/internal/tables"
-	"git.burning.moe/celediel/gt/internal/tables/modes"
+	"git.burning.moe/celediel/gt/internal/interactive"
+	"git.burning.moe/celediel/gt/internal/interactive/modes"
 
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
@@ -132,7 +132,7 @@ var (
 				fmt.Println(msg)
 				return nil
 			}
-			selected, mode, err = tables.Select(infiles, termwidth, termheight, false, false, false, workdir, modes.Interactive)
+			selected, mode, err = interactive.Select(infiles, termwidth, termheight, false, false, false, workdir, modes.Interactive)
 			if err != nil {
 				return err
 			}
@@ -223,7 +223,7 @@ var (
 				selectall = !f.Blank()
 			}
 
-			selected, _, err := tables.Select(files_to_trash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
+			selected, _, err := interactive.Select(files_to_trash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
 			if err != nil {
 				return err
 			}
@@ -264,7 +264,7 @@ var (
 			}
 
 			// display them
-			_, _, err = tables.Select(fls, termwidth, termheight, true, false, ni, workdir, modes.Listing)
+			_, _, err = interactive.Select(fls, termwidth, termheight, true, false, ni, workdir, modes.Listing)
 
 			return err
 		},
@@ -288,7 +288,7 @@ var (
 				return err
 			}
 
-			selected, _, err := tables.Select(fls, termwidth, termheight, false, all, all, workdir, modes.Restoring)
+			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, all, workdir, modes.Restoring)
 			if err != nil {
 				return err
 			}
@@ -316,7 +316,7 @@ var (
 				return err
 			}
 
-			selected, _, err := tables.Select(fls, termwidth, termheight, false, all, all, workdir, modes.Cleaning)
+			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, all, workdir, modes.Cleaning)
 			if err != nil {
 				return err
 			}

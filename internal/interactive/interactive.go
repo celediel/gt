@@ -1,4 +1,4 @@
-package tables
+package interactive
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 
 	"git.burning.moe/celediel/gt/internal/dirs"
 	"git.burning.moe/celediel/gt/internal/files"
-	"git.burning.moe/celediel/gt/internal/tables/modes"
-	"git.burning.moe/celediel/gt/internal/tables/sorting"
+	"git.burning.moe/celediel/gt/internal/interactive/modes"
+	"git.burning.moe/celediel/gt/internal/interactive/sorting"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"

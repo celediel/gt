@@ -203,15 +203,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.invr):
 			m.invertSelection()
 		case key.Matches(msg, m.keys.clen):
-			if m.mode == modes.Interactive && len(m.selected) > 0 {
-				m.mode = modes.Cleaning
-				return m.quit(false)
-			}
+			return m.execute(modes.Cleaning)
 		case key.Matches(msg, m.keys.rstr):
-			if m.mode == modes.Interactive && len(m.selected) > 0 {
-				m.mode = modes.Restoring
-				return m.quit(false)
-			}
+			return m.execute(modes.Restoring)
 		case key.Matches(msg, m.keys.sort):
 			m.sorting = m.sorting.Next()
 			m.sort()
@@ -315,6 +309,18 @@ func (m model) quit(unselect_all bool) (model, tea.Cmd) {
 	} else {
 		m.onlySelected()
 	}
+	m.table.SetStyles(makeUnselectedStyle())
+	return m, tea.Quit
+}
+
+func (m model) execute(mode modes.Mode) (model, tea.Cmd) {
+	if m.mode != modes.Interactive || len(m.selected) <= 0 {
+		var cmd tea.Cmd
+		return m, cmd
+	}
+
+	m.mode = mode
+	m.onlySelected()
 	m.table.SetStyles(makeUnselectedStyle())
 	return m, tea.Quit
 }

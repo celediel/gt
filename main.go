@@ -22,9 +22,15 @@ import (
 
 const (
 	appname     string = "gt"
-	appdesc     string = "xdg trash cli"
+	appsubtitle string = "xdg trash cli"
 	appversion  string = "v0.0.1"
-	executePerm        = fs.FileMode(0755)
+	appdesc     string = `A small command line program to interface with the
+Freedesktop.org / XDG trash specification.
+
+Run with no command or filename(s) to start interactive mode.
+
+See gt(1) for more information.`
+	executePerm = fs.FileMode(0755)
 )
 
 var (
@@ -198,7 +204,7 @@ var (
 		Name:    "trash",
 		Aliases: []string{"tr"},
 		Usage:   "Trash a file or files",
-		Flags:   slices.Concat(trashFlags, filterFlags),
+		Flags:   slices.Concat(trashingFlags, filterFlags),
 		Before:  beforeTrash,
 		Action: func(ctx *cli.Context) error {
 			var filesToTrash files.Files
@@ -242,7 +248,7 @@ var (
 		Name:    "list",
 		Aliases: []string{"ls"},
 		Usage:   "List trashed files",
-		Flags:   slices.Concat(listFlags, alreadyintrashFlags, filterFlags),
+		Flags:   slices.Concat(listFlags, trashedFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
@@ -276,7 +282,7 @@ var (
 		Name:    "restore",
 		Aliases: []string{"re"},
 		Usage:   "Restore a trashed file or files",
-		Flags:   slices.Concat(cleanRestoreFlags, alreadyintrashFlags, filterFlags),
+		Flags:   slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
@@ -307,7 +313,7 @@ var (
 		Name:    "clean",
 		Aliases: []string{"cl"},
 		Usage:   "Clean files from trash",
-		Flags:   slices.Concat(cleanRestoreFlags, alreadyintrashFlags, filterFlags),
+		Flags:   slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(_ *cli.Context) error {
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
@@ -334,7 +340,7 @@ var (
 	globalFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:        "log",
-			Usage:       "log level",
+			Usage:       "set log level",
 			Value:       "warn",
 			Aliases:     []string{"l"},
 			Destination: &loglvl,
@@ -426,7 +432,7 @@ var (
 		},
 	}
 
-	trashFlags = []cli.Flag{
+	trashingFlags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:               "recursive",
 			Usage:              "operate on files recursively",
@@ -450,7 +456,7 @@ var (
 		},
 	}
 
-	alreadyintrashFlags = []cli.Flag{
+	trashedFlags = []cli.Flag{
 		&cli.PathFlag{
 			Name:        "original-path",
 			Usage:       "operate on files trashed from this `DIRECTORY`",
@@ -483,13 +489,15 @@ var (
 func main() {
 	app := &cli.App{
 		Name:                   appname,
-		Usage:                  appdesc,
+		Usage:                  appsubtitle,
 		Version:                appversion,
 		Before:                 beforeAll,
 		After:                  after,
 		Action:                 action,
 		Commands:               []*cli.Command{doTrash, doList, doRestore, doClean},
 		Flags:                  globalFlags,
+		UsageText:              appname + " [global options] [command [command options] / filename(s)]",
+		Description:            appdesc,
 		EnableBashCompletion:   true,
 		UseShortOptionHandling: true,
 	}

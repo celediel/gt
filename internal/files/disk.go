@@ -52,14 +52,14 @@ func NewDisk(path string) (DiskFile, error) {
 	}
 
 	name := filepath.Base(abs)
-	base_path := filepath.Dir(abs)
+	basePath := filepath.Dir(abs)
 
 	log.Debugf("%s (base:%s) (size:%s) (modified:%s) exists",
-		name, base_path, humanize.Bytes(uint64(info.Size())), info.ModTime())
+		name, basePath, humanize.Bytes(uint64(info.Size())), info.ModTime())
 
 	return DiskFile{
 		name:     name,
-		path:     filepath.Join(base_path, name),
+		path:     filepath.Join(basePath, name),
 		filesize: info.Size(),
 		modified: info.ModTime(),
 		isdir:    info.IsDir(),
@@ -67,14 +67,14 @@ func NewDisk(path string) (DiskFile, error) {
 	}, nil
 }
 
-func FindDisk(dir string, recursive bool, f *filter.Filter) (files Files, err error) {
+func FindDisk(dir string, recursive bool, fltr *filter.Filter) (Files, error) {
+	var files Files
 	dir = filepath.Clean(dir)
 	if dir == "." || dir == "" {
-		var d string
-		if d, err = os.Getwd(); err != nil {
-			return
+		if pwd, err := os.Getwd(); err != nil {
+			dir = filepath.Clean(dir)
 		} else {
-			dir = d
+			dir = pwd
 		}
 	}
 
@@ -83,54 +83,55 @@ func FindDisk(dir string, recursive bool, f *filter.Filter) (files Files, err er
 		recursively = " recursively"
 	}
 
-	log.Debugf("gonna find files%s in %s matching %s", recursively, dir, f)
+	log.Debugf("gonna find files%s in %s matching %s", recursively, dir, fltr)
 
 	if recursive {
-		files = append(files, walk_dir(dir, f)...)
+		files = append(files, walkDir(dir, fltr)...)
 	} else {
-		files = append(files, read_dir(dir, f)...)
+		files = append(files, readDir(dir, fltr)...)
 	}
 
-	return
+	return files, nil
 }
 
-// is_in_hidden_dir checks `path` and parent directories
-// of `path` up to `base` for a hidden parent
-func is_in_hidden_dir(base, path string) bool {
-	me := path
+// isInHiddenDir checks `path` and parent directories
+// of `path` up to `base` for a hidden parent.
+func isInHiddenDir(base, path string) bool {
+	current := path
 	for {
-		me = filepath.Clean(me)
-		if me == base {
+		current = filepath.Clean(current)
+		if current == base {
 			break
 		}
-		if strings.HasPrefix(filepath.Base(me), ".") {
+		if strings.HasPrefix(filepath.Base(current), ".") {
 			return true
 		}
-		me += string(os.PathSeparator) + ".."
+		current += string(os.PathSeparator) + ".."
 	}
 	return false
 }
 
-func walk_dir(dir string, f *filter.Filter) (files Files) {
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+func walkDir(dir string, fltr *filter.Filter) Files {
+	var files Files
+	err := filepath.WalkDir(dir, func(path string, dirEntry fs.DirEntry, err error) error {
 		if dir == path {
 			return nil
 		}
 
-		if is_in_hidden_dir(dir, path) && f.IgnoreHidden() {
+		if isInHiddenDir(dir, path) && fltr.IgnoreHidden() {
 			return nil
 		}
 
-		p, e := filepath.Abs(path)
+		actualPath, e := filepath.Abs(path)
 		if e != nil {
 			return err
 		}
 
-		name := d.Name()
-		info, _ := d.Info()
-		if f.Match(info) {
+		name := dirEntry.Name()
+		info, _ := dirEntry.Info()
+		if fltr.Match(info) {
 			files = append(files, DiskFile{
-				path:     p,
+				path:     actualPath,
 				name:     name,
 				filesize: info.Size(),
 				modified: info.ModTime(),
@@ -144,10 +145,11 @@ func walk_dir(dir string, f *filter.Filter) (files Files) {
 		log.Errorf("error walking directory %s: %s", dir, err)
 		return Files{}
 	}
-	return
+	return files
 }
 
-func read_dir(dir string, f *filter.Filter) (files Files) {
+func readDir(dir string, fltr *filter.Filter) Files {
+	var files Files
 	fs, err := os.ReadDir(dir)
 	if err != nil {
 		return Files{}
@@ -166,7 +168,7 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 
 		path := filepath.Dir(filepath.Join(dir, name))
 
-		if f.Match(info) {
+		if fltr.Match(info) {
 			files = append(files, DiskFile{
 				name:     name,
 				path:     filepath.Join(path, name),
@@ -177,5 +179,5 @@ func read_dir(dir string, f *filter.Filter) (files Files) {
 			})
 		}
 	}
-	return
+	return files
 }

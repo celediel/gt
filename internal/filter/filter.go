@@ -1,4 +1,4 @@
-// Package filter filters files based on specific critera
+// Package filter filters files based on specific criteria
 package filter
 
 import (
@@ -61,7 +61,7 @@ func (f *Filter) Match(info fs.FileInfo) bool {
 
 	// on or before/after, not both
 	if !f.on.IsZero() {
-		if !same_day(f.on, modified) {
+		if !sameDay(f.on, modified) {
 			log.Debugf("%s: %s isn't on %s, bye!", filename, modified, f.on)
 			return false
 		}
@@ -76,7 +76,7 @@ func (f *Filter) Match(info fs.FileInfo) bool {
 		}
 	}
 
-	if f.has_regex() && !f.matcher.MatchString(filename) {
+	if f.hasRegex() && !f.matcher.MatchString(filename) {
 		log.Debugf("%s doesn't match `%s`, bye!", filename, f.matcher.String())
 		return false
 	}
@@ -88,7 +88,7 @@ func (f *Filter) Match(info fs.FileInfo) bool {
 		}
 	}
 
-	if f.has_unregex() && f.unmatcher.MatchString(filename) {
+	if f.hasUnregex() && f.unmatcher.MatchString(filename) {
 		log.Debugf("%s matches `%s`, bye!", filename, f.unmatcher.String())
 		return false
 	}
@@ -155,14 +155,14 @@ func (f *Filter) SetUnPattern(unpattern string) error {
 }
 
 func (f *Filter) Blank() bool {
-	t := time.Time{}
-	return !f.has_regex() &&
-		!f.has_unregex() &&
+	blank := time.Time{}
+	return !f.hasRegex() &&
+		!f.hasUnregex() &&
 		f.glob == "" &&
 		f.unglob == "" &&
-		f.after.Equal(t) &&
-		f.before.Equal(t) &&
-		f.on.Equal(t) &&
+		f.after.Equal(blank) &&
+		f.before.Equal(blank) &&
+		f.on.Equal(blank) &&
 		len(f.filenames) == 0 &&
 		!f.ignorehidden &&
 		!f.filesonly &&
@@ -173,31 +173,31 @@ func (f *Filter) Blank() bool {
 }
 
 func (f *Filter) String() string {
-	var m, unm string
+	var match, unmatch string
 	if f.matcher != nil {
-		m = f.matcher.String()
+		match = f.matcher.String()
 	}
 	if f.unmatcher != nil {
-		unm = f.unmatcher.String()
+		unmatch = f.unmatcher.String()
 	}
 	return fmt.Sprintf("on:'%s' before:'%s' after:'%s' glob:'%s' regex:'%s' unglob:'%s' "+
 		"unregex:'%s' filenames:'%v' filesonly:'%t' dirsonly:'%t' ignorehidden:'%t' "+
 		"minsize:'%d' maxsize:'%d' mode:'%s'",
 		f.on, f.before, f.after,
-		f.glob, m, f.unglob, unm,
+		f.glob, match, f.unglob, unmatch,
 		f.filenames, f.filesonly, f.dirsonly,
 		f.ignorehidden, f.minsize, f.maxsize, f.mode,
 	)
 }
 
-func (f *Filter) has_regex() bool {
+func (f *Filter) hasRegex() bool {
 	if f.matcher == nil {
 		return false
 	}
 	return f.matcher.String() != ""
 }
 
-func (f *Filter) has_unregex() bool {
+func (f *Filter) hasUnregex() bool {
 	if f.unmatcher == nil {
 		return false
 	}
@@ -210,7 +210,7 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		now = time.Now()
 	)
 
-	f := &Filter{
+	filter := &Filter{
 		glob:         glob,
 		unglob:       unglob,
 		filesonly:    filesonly,
@@ -219,14 +219,14 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		mode:         mode,
 	}
 
-	f.AddFileNames(names...)
+	filter.AddFileNames(names...)
 
 	if on != "" {
 		o, err := anytime.Parse(on, now)
 		if err != nil {
 			return &Filter{}, err
 		}
-		f.on = o
+		filter.on = o
 	}
 
 	if after != "" {
@@ -234,7 +234,7 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		if err != nil {
 			return &Filter{}, err
 		}
-		f.after = a
+		filter.after = a
 	}
 
 	if before != "" {
@@ -242,14 +242,14 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		if err != nil {
 			return &Filter{}, err
 		}
-		f.before = b
+		filter.before = b
 	}
 
-	err = f.SetPattern(pattern)
+	err = filter.SetPattern(pattern)
 	if err != nil {
 		return nil, err
 	}
-	err = f.SetUnPattern(unpattern)
+	err = filter.SetUnPattern(unpattern)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		if e != nil {
 			log.Errorf("invalid input size '%s'", minsize)
 		}
-		f.minsize = int64(m)
+		filter.minsize = int64(m)
 	}
 
 	if maxsize != "" {
@@ -267,13 +267,13 @@ func New(on, before, after, glob, pattern, unglob, unpattern string, filesonly, 
 		if e != nil {
 			log.Errorf("invalid input size '%s'", maxsize)
 		}
-		f.maxsize = int64(m)
+		filter.maxsize = int64(m)
 	}
 
-	return f, nil
+	return filter, nil
 }
 
-func same_day(a, b time.Time) bool {
+func sameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd

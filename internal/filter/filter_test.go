@@ -66,13 +66,14 @@ func (s singletest) String() string {
 }
 
 func testmatch(t *testing.T, testers []testholder) {
+	t.Helper() // I don't think this is a helper function but w/e
 	const testnamefmt string = "file %s modified on %s"
 	var (
-		f   *filter.Filter
-		err error
+		fltr *filter.Filter
+		err  error
 	)
 	for _, tester := range testers {
-		f, err = filter.New(
+		fltr, err = filter.New(
 			tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 			tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
 			tester.ignorehidden, tester.minsize, tester.maxsize, tester.mode,
@@ -84,7 +85,7 @@ func testmatch(t *testing.T, testers []testholder) {
 
 		for _, tst := range tester.good {
 			t.Run(fmt.Sprintf(testnamefmt+"_good", tst.filename, tst.modified), func(t *testing.T) {
-				if !f.Match(tst) {
+				if !fltr.Match(tst) {
 					t.Fatalf("(%s) didn't match (%s) but should have", tst, tester)
 				}
 			})
@@ -92,7 +93,7 @@ func testmatch(t *testing.T, testers []testholder) {
 
 		for _, tst := range tester.bad {
 			t.Run(fmt.Sprintf(testnamefmt+"_bad", tst.filename, tst.modified), func(t *testing.T) {
-				if f.Match(tst) {
+				if fltr.Match(tst) {
 					t.Fatalf("(%s) matched (%s) but shouldn't have", tst, tester)
 				}
 			})
@@ -116,10 +117,10 @@ func timeonly(dir bool, times ...time.Time) []singletest {
 	return out
 }
 
-func sizeonly(dir bool, sizes ...int64) []singletest {
+func sizeonly(sizes ...int64) []singletest {
 	out := make([]singletest, 0, len(sizes))
 	for _, size := range sizes {
-		out = append(out, singletest{filename: "blank", modified: time.Time{}, isdir: dir, size: size, mode: 0000})
+		out = append(out, singletest{filename: "blank", modified: time.Time{}, isdir: false, size: size, mode: 0000})
 	}
 	return out
 }
@@ -301,7 +302,7 @@ func TestFilterGlob(t *testing.T) {
 		},
 		{
 			glob: "t?st",
-			good: nameonly(false, "test", "tast", "tfst", "tnst"),
+			good: nameonly(false, "test", "tist", "tfst", "tnst"),
 			bad:  nameonly(false, "best", "fast", "most", "past"),
 		},
 	})
@@ -342,7 +343,7 @@ func TestFilterUnGlob(t *testing.T) {
 		{
 			unglob: "t?st",
 			good:   nameonly(false, "best", "fast", "most", "past"),
-			bad:    nameonly(false, "test", "tast", "tfst", "tnst"),
+			bad:    nameonly(false, "test", "tist", "tfst", "tnst"),
 		},
 	})
 }
@@ -410,13 +411,13 @@ func TestFilesize(t *testing.T) {
 	testmatch(t, []testholder{
 		{
 			minsize: "9001B",
-			good:    sizeonly(false, 10000, 9002, 424242, math.MaxInt64),
-			bad:     sizeonly(false, 9000, math.MinInt64, 0, -9001),
+			good:    sizeonly(10000, 9002, 424242, math.MaxInt64),
+			bad:     sizeonly(9000, math.MinInt64, 0, -9001),
 		},
 		{
 			maxsize: "9001B",
-			good:    sizeonly(false, 9000, math.MinInt64, 0, -9001),
-			bad:     sizeonly(false, 10000, 9002, 424242, math.MaxInt64),
+			good:    sizeonly(9000, math.MinInt64, 0, -9001),
+			bad:     sizeonly(10000, 9002, 424242, math.MaxInt64),
 		},
 	})
 }
@@ -580,25 +581,25 @@ func TestFilterMultipleParameters(t *testing.T) {
 }
 
 func TestFilterBlank(t *testing.T) {
-	var f *filter.Filter
+	var fltr *filter.Filter
 	t.Run("new", func(t *testing.T) {
-		f, _ = filter.New("", "", "", "", "", "", "", false, false, false, "0", "0", 0)
-		if !f.Blank() {
-			t.Fatalf("filter isn't blank? %s", f)
+		fltr, _ = filter.New("", "", "", "", "", "", "", false, false, false, "0", "0", 0)
+		if !fltr.Blank() {
+			t.Fatalf("filter isn't blank? %s", fltr)
 		}
 	})
 
 	t.Run("blank", func(t *testing.T) {
-		f = &filter.Filter{}
-		if !f.Blank() {
-			t.Fatalf("filter isn't blank? %s", f)
+		fltr = &filter.Filter{}
+		if !fltr.Blank() {
+			t.Fatalf("filter isn't blank? %s", fltr)
 		}
 	})
 }
 
 func TestFilterNotBlank(t *testing.T) {
 	var (
-		f       *filter.Filter
+		fltr    *filter.Filter
 		testers = []testholder{
 			{
 				pattern: "[Ttest]",
@@ -642,14 +643,14 @@ func TestFilterNotBlank(t *testing.T) {
 
 	for _, tester := range testers {
 		t.Run("notblank"+tester.String(), func(t *testing.T) {
-			f, _ = filter.New(
+			fltr, _ = filter.New(
 				tester.on, tester.before, tester.after, tester.glob, tester.pattern,
 				tester.unglob, tester.unpattern, tester.filesonly, tester.dirsonly,
 				tester.ignorehidden, tester.minsize, tester.maxsize, tester.mode,
 				tester.filenames...,
 			)
-			if f.Blank() {
-				t.Fatalf("filter is blank?? %s", f)
+			if fltr.Blank() {
+				t.Fatalf("filter is blank?? %s", fltr)
 			}
 		})
 	}

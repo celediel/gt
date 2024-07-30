@@ -1,3 +1,4 @@
+// Package dirs provides functions sanitize directory names.
 package dirs
 
 import (
@@ -15,11 +16,11 @@ var (
 
 // UnExpand returns dir after expanding some directory shortcuts
 //
-// $HOME -> ~
+//	$HOME -> ~
 //
-// $PWD -> .
+//	$PWD -> .
 //
-// workdir -> /
+//	workdir -> /
 func UnExpand(dir, workdir string) (outdir string) {
 	if dir != "" {
 		outdir = cleanDir(dir, pwd)

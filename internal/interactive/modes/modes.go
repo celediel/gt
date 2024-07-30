@@ -1,3 +1,4 @@
+// Package modes implements Mode type for interactive table.
 package modes
 
 type Mode int

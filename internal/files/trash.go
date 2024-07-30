@@ -20,13 +20,15 @@ import (
 )
 
 const (
-	random_str_length   int    = 8
-	trash_info_ext      string = ".trashinfo"
-	trash_info_sec      string = "Trash Info"
-	trash_info_path     string = "Path"
-	trash_info_date     string = "DeletionDate"
-	trash_info_date_fmt string = "2006-01-02T15:04:05"
-	trash_info_template string = `[Trash Info]
+	executePerm              = fs.FileMode(0755)
+	noExecuteUserPerm        = fs.FileMode(0600)
+	randomStrLength   int    = 8
+	trashInfoExt      string = ".trashinfo"
+	trashInfoSec      string = "Trash Info"
+	trashInfoPath     string = "Path"
+	trashInfoDate     string = "DeletionDate"
+	trashInfoDateFmt  string = "2006-01-02T15:04:05"
+	trashInfoTemplate string = `[Trash Info]
 Path={path}
 DeletionDate={date}
 `
@@ -59,15 +61,16 @@ func (t TrashInfo) String() string {
 	return t.name + t.path + t.ogpath + t.trashinfo
 }
 
-func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr error) {
-	outerr = filepath.WalkDir(trashdir, func(path string, d fs.DirEntry, err error) error {
+func FindTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
+	var files Files
+	outerr := filepath.WalkDir(trashdir, func(path string, dirEntry fs.DirEntry, err error) error {
 		if err != nil {
 			log.Debugf("what happened?? what is %s?", err)
 			return err
 		}
 
 		// ignore self, directories, and non trashinfo files
-		if path == trashdir || d.IsDir() || filepath.Ext(path) != trash_info_ext {
+		if path == trashdir || dirEntry.IsDir() || filepath.Ext(path) != trashInfoExt {
 			return nil
 		}
 
@@ -76,19 +79,19 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 		if err != nil {
 			return err
 		}
-		if s := c.Section(trash_info_sec); s != nil {
-			basepath := s.Key(trash_info_path).String()
+		if section := c.Section(trashInfoSec); section != nil {
+			basepath := section.Key(trashInfoPath).String()
 
 			filename := filepath.Base(basepath)
-			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trash_info_ext, "", 1)
+			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trashInfoExt, "", 1)
 			info, err := os.Lstat(trashedpath)
 			if err != nil {
 				log.Errorf("error reading %s: %s", trashedpath, err)
 				return nil
 			}
 
-			s := s.Key(trash_info_date).Value()
-			date, err := time.ParseInLocation(trash_info_date_fmt, s, time.Local)
+			s := section.Key(trashInfoDate).Value()
+			date, err := time.ParseInLocation(trashInfoDateFmt, s, time.Local)
 			if err != nil {
 				return err
 			}
@@ -97,7 +100,7 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 				return nil
 			}
 
-			if f.Match(info) {
+			if fltr.Match(info) {
 				files = append(files, TrashInfo{
 					name:      filename,
 					path:      trashedpath,
@@ -108,14 +111,13 @@ func FindTrash(trashdir, ogdir string, f *filter.Filter) (files Files, outerr er
 					filesize:  info.Size(),
 				})
 			}
-
 		}
 		return nil
 	})
 	if outerr != nil {
 		return Files{}, outerr
 	}
-	return
+	return files, nil
 }
 
 func Restore(files Files) (restored int, err error) {
@@ -125,8 +127,8 @@ func Restore(files Files) (restored int, err error) {
 			return restored, fmt.Errorf("bad file?? %s", maybeFile.Name())
 		}
 
-		var outpath string = dirs.UnEscape(file.ogpath)
 		var cancel bool
+		outpath := dirs.UnEscape(file.ogpath)
 		log.Infof("restoring %s back to %s\n", file.name, outpath)
 		if _, e := os.Lstat(outpath); e == nil {
 			outpath, cancel = prompt.NewPath(outpath)
@@ -138,7 +140,7 @@ func Restore(files Files) (restored int, err error) {
 
 		basedir := filepath.Dir(outpath)
 		if _, e := os.Stat(basedir); e != nil {
-			if err = os.MkdirAll(basedir, fs.FileMode(0755)); err != nil {
+			if err = os.MkdirAll(basedir, executePerm); err != nil {
 				return restored, err
 			}
 		}
@@ -161,11 +163,11 @@ func ConfirmRestore(confirm bool, fs Files) error {
 		log.Info("doing the thing")
 		restored, err := Restore(fs)
 		if err != nil {
-			return fmt.Errorf("restored %d files before error %s", restored, err)
+			return fmt.Errorf("restored %d files before error %w", restored, err)
 		}
-		fmt.Printf("restored %d files\n", restored)
+		fmt.Fprintf(os.Stdout, "restored %d files\n", restored)
 	} else {
-		fmt.Printf("not doing anything\n")
+		fmt.Fprintf(os.Stdout, "not doing anything\n")
 	}
 	return nil
 }
@@ -177,7 +179,6 @@ func Remove(files Files) (removed int, err error) {
 			return removed, fmt.Errorf("bad file?? %s", maybeFile.Name())
 		}
 
-		log.Infof("removing %s permanently forever!!!", file.name)
 		if err = os.Remove(file.path); err != nil {
 			if i, e := os.Lstat(file.path); e == nil && i.IsDir() {
 				err = os.RemoveAll(file.path)
@@ -199,38 +200,37 @@ func Remove(files Files) (removed int, err error) {
 func ConfirmClean(confirm bool, fs Files) error {
 	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(fs))) &&
 		(!confirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(fs)))) {
-		log.Info("gonna remove some files forever")
 		removed, err := Remove(fs)
 		if err != nil {
-			return fmt.Errorf("removed %d files before error %s", removed, err)
+			return fmt.Errorf("removed %d files before error %w", removed, err)
 		}
-		fmt.Printf("removed %d files\n", removed)
+		fmt.Fprintf(os.Stdout, "removed %d files\n", removed)
 	} else {
-		fmt.Printf("not doing anything\n")
+		fmt.Fprintf(os.Stdout, "not doing anything\n")
 	}
 	return nil
 }
 
 func TrashFile(trashDir, name string) error {
-	trashinfo_filename, out_path := ensureUniqueName(filepath.Base(name), trashDir)
+	trashinfoFilename, outPath := ensureUniqueName(filepath.Base(name), trashDir)
 
 	// TODO: write across filesystems
-	if err := os.Rename(name, out_path); err != nil {
+	if err := os.Rename(name, outPath); err != nil {
 		if strings.Contains(err.Error(), "invalid cross-device link") {
 			return fmt.Errorf("not trashing file '%s': On different filesystem from trash directory", name)
 		}
 		return err
 	}
 
-	trash_info, err := formatter.Format(trash_info_template, formatter.Named{
+	trashInfo, err := formatter.Format(trashInfoTemplate, formatter.Named{
 		"path": name,
-		"date": time.Now().Format(trash_info_date_fmt),
+		"date": time.Now().Format(trashInfoDateFmt),
 	})
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(trashinfo_filename, []byte(trash_info), fs.FileMode(0600)); err != nil {
+	if err := os.WriteFile(trashinfoFilename, []byte(trashInfo), noExecuteUserPerm); err != nil {
 		return err
 	}
 	return nil
@@ -258,15 +258,15 @@ func ConfirmTrash(confirm bool, fs Files, trashDir string) error {
 		if err != nil {
 			return err
 		}
-		var f string
+		var files string
 		if trashed == 1 {
-			f = "file"
+			files = "file"
 		} else {
-			f = "files"
+			files = "files"
 		}
-		fmt.Printf("trashed %d %s\n", trashed, f)
+		fmt.Fprintf(os.Stdout, "trashed %d %s\n", trashed, files)
 	} else {
-		fmt.Printf("not doing anything\n")
+		fmt.Fprintf(os.Stdout, "not doing anything\n")
 		return nil
 	}
 	return nil
@@ -291,7 +291,7 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 		infodir = filepath.Join(trashDir, "info")
 	)
 
-	info := filepath.Join(infodir, filename+trash_info_ext)
+	info := filepath.Join(infodir, filename+trashInfoExt)
 	if _, err := os.Stat(info); os.IsNotExist(err) {
 		// doesn't exist, so use it
 		path := filepath.Join(filedir, filename)
@@ -302,12 +302,12 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 		var tries int
 		for {
 			tries++
-			rando := randomFilename(random_str_length)
-			new_name := filepath.Join(infodir, filename+rando+trash_info_ext)
-			if _, err := os.Stat(new_name); os.IsNotExist(err) {
+			rando := randomFilename(randomStrLength)
+			newName := filepath.Join(infodir, filename+rando+trashInfoExt)
+			if _, err := os.Stat(newName); os.IsNotExist(err) {
 				path := filepath.Join(filedir, filename+rando)
 				log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
-				return new_name, path
+				return newName, path
 			}
 		}
 	}

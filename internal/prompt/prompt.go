@@ -1,3 +1,4 @@
+// Package prompt implements prompt functions for runes and strings.
 package prompt
 
 import (
@@ -28,16 +29,16 @@ func AskRune(prompt, options string) byte {
 		}
 	}()
 
-	fmt.Printf("%s [%s]: ", prompt, options)
+	fmt.Fprintf(os.Stdout, "%s [%s]: ", prompt, options)
 
 	// read one byte from stdin
-	b := make([]byte, 1)
-	_, err = os.Stdin.Read(b)
+	one := make([]byte, 1)
+	_, err = os.Stdin.Read(one)
 	if err != nil {
 		return 0
 	}
 
-	return bytes.ToLower(b)[0]
+	return bytes.ToLower(one)[0]
 }
 
 func NewPath(path string) (string, bool) {

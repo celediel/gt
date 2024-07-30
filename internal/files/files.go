@@ -103,17 +103,17 @@ func SortDirectoriesLast(a, b File) int {
 }
 
 func doNameSort(a, b File) int {
-	an := strings.ToLower(a.Name())
-	bn := strings.ToLower(b.Name())
+	aname := strings.ToLower(a.Name())
+	bname := strings.ToLower(b.Name())
 	// check if filename is a number
-	abase := strings.Replace(an, filepath.Ext(an), "", 1)
-	bbase := strings.Replace(bn, filepath.Ext(bn), "", 1)
+	abase := strings.Replace(aname, filepath.Ext(aname), "", 1)
+	bbase := strings.Replace(bname, filepath.Ext(bname), "", 1)
 	ai, aerr := strconv.Atoi(abase)
 	bi, berr := strconv.Atoi(bbase)
 	if aerr == nil && berr == nil {
 		return cmp.Compare(ai, bi)
 	}
-	return cmp.Compare(an, bn)
+	return cmp.Compare(aname, bname)
 }
 
 func getSortingSize(f File) int64 {

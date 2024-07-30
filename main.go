@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	appname    string = "gt"
-	appdesc    string = "xdg trash cli"
-	appversion string = "v0.0.1"
+	appname     string = "gt"
+	appdesc     string = "xdg trash cli"
+	appversion  string = "v0.0.1"
+	executePerm        = fs.FileMode(0755)
 )
 
 var (
@@ -43,12 +44,12 @@ var (
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
-	beforeAll = func(ctx *cli.Context) (err error) {
+	beforeAll = func(_ *cli.Context) error {
 		// setup log
 		log.SetReportTimestamp(true)
 		log.SetTimeFormat(time.TimeOnly)
-		if l, e := log.ParseLevel(loglvl); e == nil {
-			log.SetLevel(l)
+		if level, err := log.ParseLevel(loglvl); err == nil {
+			log.SetLevel(level)
 			// Some extra info for debug level
 			if log.GetLevel() == log.DebugLevel {
 				log.SetReportCaller(true)
@@ -58,35 +59,35 @@ var (
 		}
 
 		// read the term height and width for tables
-		w, h, e := term.GetSize(int(os.Stdout.Fd()))
+		width, height, e := term.GetSize(int(os.Stdout.Fd()))
 		if e != nil {
-			w = 80
-			h = 24
+			width = 80
+			height = 24
 		}
-		termwidth = w
-		termheight = h
+		termwidth = width
+		termheight = height
 
 		// ensure trash directories exist
 		if _, e := os.Stat(trashDir); os.IsNotExist(e) {
-			if err := os.Mkdir(trashDir, fs.FileMode(0755)); err != nil {
+			if err := os.Mkdir(trashDir, executePerm); err != nil {
 				return err
 			}
 		}
 		if _, e := os.Stat(filepath.Join(trashDir, "info")); os.IsNotExist(e) {
-			if err := os.Mkdir(filepath.Join(trashDir, "info"), fs.FileMode(0755)); err != nil {
+			if err := os.Mkdir(filepath.Join(trashDir, "info"), executePerm); err != nil {
 				return err
 			}
 		}
 		if _, e := os.Stat(filepath.Join(trashDir, "files")); os.IsNotExist(e) {
-			if err := os.Mkdir(filepath.Join(trashDir, "files"), fs.FileMode(0755)); err != nil {
+			if err := os.Mkdir(filepath.Join(trashDir, "files"), executePerm); err != nil {
 				return err
 			}
 		}
 
-		return
+		return nil
 	}
 
-	// action launches interactive mode if run without args, or trashes files as args
+	// action launches interactive mode if run without args, or trashes files as args.
 	action = func(ctx *cli.Context) error {
 		var (
 			err error
@@ -103,18 +104,7 @@ var (
 			return err
 		}
 
-		if len(ctx.Args().Slice()) != 0 {
-			// args, so try to trash files
-			var files_to_trash files.Files
-			for _, arg := range ctx.Args().Slice() {
-				file, e := files.NewDisk(arg)
-				if e != nil {
-					log.Fatalf("cannot trash '%s': No such file or directory", arg)
-				}
-				files_to_trash = append(files_to_trash, file)
-			}
-			return files.ConfirmTrash(askconfirm, files_to_trash, trashDir)
-		} else {
+		if len(ctx.Args().Slice()) == 0 {
 			// no ags, so do interactive mode
 			var (
 				infiles  files.Files
@@ -133,7 +123,7 @@ var (
 				} else {
 					msg = "no files to show"
 				}
-				fmt.Println(msg)
+				fmt.Fprint(os.Stdout, msg)
 				return nil
 			}
 			selected, mode, err = interactive.Select(infiles, termwidth, termheight, false, false, false, workdir, modes.Interactive)
@@ -162,6 +152,17 @@ var (
 			}
 			return nil
 		}
+
+		// args, so try to trash files
+		var filesToTrash files.Files
+		for _, arg := range ctx.Args().Slice() {
+			file, e := files.NewDisk(arg)
+			if e != nil {
+				log.Fatalf("cannot trash '%s': No such file or directory", arg)
+			}
+			filesToTrash = append(filesToTrash, file)
+		}
+		return files.ConfirmTrash(askconfirm, filesToTrash, trashDir)
 	}
 
 	beforeCommands = func(ctx *cli.Context) (err error) {
@@ -189,7 +190,7 @@ var (
 		return
 	}
 
-	after = func(ctx *cli.Context) error {
+	after = func(_ *cli.Context) error {
 		return nil
 	}
 
@@ -200,7 +201,7 @@ var (
 		Flags:   slices.Concat(trashFlags, filterFlags),
 		Before:  beforeTrash,
 		Action: func(ctx *cli.Context) error {
-			var files_to_trash files.Files
+			var filesToTrash files.Files
 			var selectall bool
 			for _, arg := range ctx.Args().Slice() {
 				file, e := files.NewDisk(arg)
@@ -209,25 +210,25 @@ var (
 					fltr.AddFileName(arg)
 					continue
 				}
-				files_to_trash = append(files_to_trash, file)
+				filesToTrash = append(filesToTrash, file)
 				selectall = true
 			}
 
 			// if none of the args were files, then process find files based on filter
-			if len(files_to_trash) == 0 {
+			if len(filesToTrash) == 0 {
 				fls, err := files.FindDisk(workdir, recursive, fltr)
 				if err != nil {
 					return err
 				}
 				if len(fls) == 0 {
-					fmt.Println("no files to trash")
+					fmt.Fprintf(os.Stdout, "no files to trash")
 					return nil
 				}
-				files_to_trash = append(files_to_trash, fls...)
+				filesToTrash = append(filesToTrash, fls...)
 				selectall = !fltr.Blank()
 			}
 
-			selected, _, err := interactive.Select(files_to_trash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
+			selected, _, err := interactive.Select(filesToTrash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
 			if err != nil {
 				return err
 			}
@@ -246,14 +247,14 @@ var (
 		Usage:   "List trashed files",
 		Flags:   slices.Concat(listFlags, alreadyintrashFlags, filterFlags),
 		Before:  beforeCommands,
-		Action: func(ctx *cli.Context) error {
+		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 
 			var msg string
-			log.Debugf("filter '%s' is blark? %t in %s", fltr, fltr.Blank(), ogdir)
+			log.Debugf("filter '%s' is blank? %t in %s", fltr, fltr.Blank(), ogdir)
 			if fltr.Blank() && ogdir == "" {
 				msg = "trash is empty"
 			} else {
@@ -261,7 +262,7 @@ var (
 			}
 
 			if len(fls) == 0 {
-				fmt.Println(msg)
+				fmt.Fprint(os.Stdout, msg)
 				return nil
 			} else if err != nil {
 				return err
@@ -280,13 +281,13 @@ var (
 		Usage:   "Restore a trashed file or files",
 		Flags:   slices.Concat(cleanRestoreFlags, alreadyintrashFlags, filterFlags),
 		Before:  beforeCommands,
-		Action: func(ctx *cli.Context) error {
+		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
 			// look for files
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
-				fmt.Println("no files to restore")
+				fmt.Fprintf(os.Stdout, "no files to restore")
 				return nil
 			} else if err != nil {
 				return err
@@ -311,10 +312,10 @@ var (
 		Usage:   "Clean files from trash",
 		Flags:   slices.Concat(cleanRestoreFlags, alreadyintrashFlags, filterFlags),
 		Before:  beforeCommands,
-		Action: func(ctx *cli.Context) error {
+		Action: func(_ *cli.Context) error {
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
-				fmt.Println("no files to clean")
+				fmt.Fprintf(os.Stdout, "no files to clean")
 				return nil
 			} else if err != nil {
 				return err

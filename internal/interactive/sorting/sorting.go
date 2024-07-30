@@ -1,3 +1,4 @@
+// Package sorting implements Sorting type for interactive table.
 package sorting
 
 import "git.burning.moe/celediel/gt/internal/files"

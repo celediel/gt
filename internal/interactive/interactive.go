@@ -1,3 +1,4 @@
+// Package interactive implements a charm-powered table to display files.
 package interactive
 
 import (
@@ -64,7 +65,7 @@ type model struct {
 	files      files.Files
 }
 
-func newModel(fs []files.File, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) model {
+func newModel(fls []files.File, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) model {
 	var (
 		// TODO: figure this out dynamically based on longest of each
 		fwidth  int = int(math.Round(float64(width-woffset) * 0.46))
@@ -72,9 +73,9 @@ func newModel(fs []files.File, width, height int, readonly, preselected, once bo
 		dwidth  int = int(math.Round(float64(width-woffset) * 0.15))
 		swidth  int = int(math.Round(float64(width-woffset) * 0.12))
 		cwidth  int = int(math.Round(float64(width-woffset) * 0.02))
-		theight int = min(height-hoffset, len(fs))
+		theight int = min(height-hoffset, len(fls))
 
-		m = model{
+		mdl = model{
 			keys:       defaultKeyMap(),
 			readonly:   readonly,
 			once:       once,
@@ -83,15 +84,15 @@ func newModel(fs []files.File, width, height int, readonly, preselected, once bo
 			mode:       mode,
 			selected:   map[string]bool{},
 			selectsize: 0,
-			files:      fs,
+			files:      fls,
 		}
 	)
 
 	if workdir != "" {
-		m.workdir = filepath.Clean(workdir)
+		mdl.workdir = filepath.Clean(workdir)
 	}
 
-	rows := m.freshRows(preselected)
+	rows := mdl.freshRows(preselected)
 
 	columns := []table.Column{
 		{Title: "filename", Width: fwidth},
@@ -99,18 +100,18 @@ func newModel(fs []files.File, width, height int, readonly, preselected, once bo
 		{Title: "modified", Width: dwidth},
 		{Title: "size", Width: swidth},
 	}
-	if !m.readonly {
+	if !mdl.readonly {
 		columns = append(columns, table.Column{Title: uncheck, Width: cwidth})
 	} else {
 		columns[0].Width += cwidth
 	}
 
-	m.table = createTable(columns, rows, theight)
+	mdl.table = createTable(columns, rows, theight)
 
-	m.sorting = sorting.Name
-	m.sort()
+	mdl.sorting = sorting.Name
+	mdl.sort()
 
-	return m
+	return mdl
 }
 
 type keyMap struct {
@@ -235,7 +236,7 @@ func (m model) View() string {
 
 func (m model) showHelp() string {
 	// TODO: maybe use bubbletea built in help
-	var keys []string = []string{
+	var keys = []string{
 		fmt.Sprintf("%s %s (%s)", darktext.Render(m.keys.sort.Help().Key), darkertext.Render(m.keys.sort.Help().Desc), m.sorting.String()),
 		fmt.Sprintf("%s %s", darktext.Render(m.keys.quit.Help().Key), darkertext.Render(m.keys.quit.Help().Desc)),
 	}
@@ -254,50 +255,50 @@ func (m model) showHelp() string {
 
 func (m model) header() string {
 	var (
-		right, left  string
-		spacer_width int
-		keys         = []string{
+		right, left string
+		spacerWidth int
+		keys        = []string{
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.rstr.Help().Key), darkertext.Render(m.keys.rstr.Help().Desc)),
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.clen.Help().Key), darkertext.Render(m.keys.clen.Help().Desc)),
 		}
-		select_keys = []string{
+		selectKeys = []string{
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.todo.Help().Key), darkertext.Render(m.keys.todo.Help().Desc)),
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.nada.Help().Key), darkertext.Render(m.keys.nada.Help().Desc)),
 			fmt.Sprintf("%s %s", darktext.Render(m.keys.invr.Help().Key), darkertext.Render(m.keys.invr.Help().Desc)),
 		}
-		dot      = darkesttext.Render("•")
-		wide_dot = darkesttext.Render(" • ")
+		dot     = darkesttext.Render("•")
+		wideDot = darkesttext.Render(" • ")
 	)
 
 	right = " " // to offset from the table border
 	switch m.mode {
 	case modes.Interactive:
-		right += strings.Join(keys, wide_dot)
+		right += strings.Join(keys, wideDot)
 	default:
 		right += m.mode.String()
 		if m.workdir != "" {
 			right += fmt.Sprintf(" in %s", dirs.UnExpand(m.workdir, ""))
 		}
 	}
-	right += fmt.Sprintf(" %s %s", dot, strings.Join(select_keys, wide_dot))
+	right += fmt.Sprintf(" %s %s", dot, strings.Join(selectKeys, wideDot))
 
 	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
 
 	// offset of 2 again because of table border
-	spacer_width = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - 2
-	if spacer_width <= 0 {
-		spacer_width = 1 // always at least one space
+	spacerWidth = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - 2
+	if spacerWidth <= 0 {
+		spacerWidth = 1 // always at least one space
 	}
 
-	return fmt.Sprintf("%s%s%s", right, strings.Repeat(" ", spacer_width), left)
+	return fmt.Sprintf("%s%s%s", right, strings.Repeat(" ", spacerWidth), left)
 }
 
 func (m model) footer() string {
 	return regulartext.Render(m.showHelp())
 }
 
-func (m model) quit(unselect_all bool) (model, tea.Cmd) {
-	if unselect_all {
+func (m model) quit(unselectAll bool) (model, tea.Cmd) {
+	if unselectAll {
 		m.unselectAll()
 	} else {
 		m.onlySelected()
@@ -337,17 +338,17 @@ func (m model) selectedFiles() (outfile files.Files) {
 } */
 
 func (m *model) freshRows(preselected bool) (rows []table.Row) {
-	for _, f := range m.files {
-		r := newRow(f, m.workdir)
+	for _, file := range m.files {
+		row := newRow(file, m.workdir)
 
 		if !m.readonly {
-			r = append(r, getCheck(preselected))
+			row = append(row, getCheck(preselected))
 		}
 		if preselected {
-			m.selected[f.String()] = true
-			m.selectsize += f.Filesize()
+			m.selected[file.String()] = true
+			m.selectsize += file.Filesize()
 		}
-		rows = append(rows, r)
+		rows = append(rows, row)
 	}
 	return
 }
@@ -364,7 +365,7 @@ func (m *model) onlySelected() {
 	m.table.SetRows(rows)
 }
 
-// updateRow updates row of `index` with `row`
+// updateRow updates row of provided index with provided row.
 func (m *model) updateRow(index int, selected bool) {
 	rows := m.table.Rows()
 	row := rows[index]
@@ -380,17 +381,17 @@ func (m *model) updateRow(index int, selected bool) {
 }
 
 func (m *model) updateRows(selected bool) {
-	var newrows []table.Row
+	var newrows = []table.Row{}
 
 	for _, row := range m.table.Rows() {
-		r := table.Row{
+		newRow := table.Row{
 			row[0],
 			row[1],
 			row[2],
 			row[3],
 			getCheck(selected),
 		}
-		newrows = append(newrows, r)
+		newrows = append(newrows, newRow)
 	}
 	m.table.SetRows(newrows)
 }
@@ -483,7 +484,7 @@ func (m *model) invertSelection() {
 
 func (m *model) sort() {
 	slices.SortStableFunc(m.files, m.sorting.Sorter())
-	var rows []table.Row
+	var rows = []table.Row{}
 	for _, file := range m.files {
 		r := newRow(file, m.workdir)
 		if !m.readonly {
@@ -495,32 +496,32 @@ func (m *model) sort() {
 	m.table.SetRows(rows)
 }
 
-func Select(fs files.Files, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
-	mdl := newModel(fs, width, height, readonly, preselected, once, workdir, mode)
+func Select(fls files.Files, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
+	mdl := newModel(fls, width, height, readonly, preselected, once, workdir, mode)
 	endmodel, err := tea.NewProgram(mdl).Run()
 	if err != nil {
-		return fs, 0, err
+		return fls, 0, err
 	}
 	m, ok := endmodel.(model)
 	if !ok {
-		return fs, 0, fmt.Errorf("model isn't the right type?? what has happened")
+		return fls, 0, fmt.Errorf("model isn't the right type?? what has happened")
 	}
 	return m.selectedFiles(), m.mode, nil
 }
 
 func newRow(file files.File, workdir string) table.Row {
-	var t, b string
-	t = humanize.Time(file.Date())
+	var time, bar string
+	time = humanize.Time(file.Date())
 	if file.IsDir() {
-		b = strings.Repeat("─", 3)
+		bar = strings.Repeat("─", 3)
 	} else {
-		b = humanize.Bytes(uint64(file.Filesize()))
+		bar = humanize.Bytes(uint64(file.Filesize()))
 	}
 	return table.Row{
 		dirs.UnEscape(file.Name()),
 		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
-		t,
-		b,
+		time,
+		bar,
 	}
 }
 
@@ -534,43 +535,43 @@ func getCheck(selected bool) (ourcheck string) {
 }
 
 func createTable(columns []table.Column, rows []table.Row, height int) table.Model {
-	t := table.New(
+	tbl := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height),
 	)
-	t.KeyMap = fixTableKeymap()
-	t.SetStyles(makeStyle())
-	return t
+	tbl.KeyMap = fixTableKeymap()
+	tbl.SetStyles(makeStyle())
+	return tbl
 }
 
 func fixTableKeymap() table.KeyMap {
-	t := table.DefaultKeyMap()
+	tbl := table.DefaultKeyMap()
 
 	// remove spacebar from default page down keybind, but keep the rest
-	t.PageDown.SetKeys(
-		slices.DeleteFunc(t.PageDown.Keys(), func(s string) bool {
+	tbl.PageDown.SetKeys(
+		slices.DeleteFunc(tbl.PageDown.Keys(), func(s string) bool {
 			return s == space
 		})...,
 	)
 
-	return t
+	return tbl
 }
 
 func makeStyle() table.Styles {
-	s := table.DefaultStyles()
-	s.Header = s.Header.
+	style := table.DefaultStyles()
+	style.Header = style.Header.
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color(black)).
 		BorderBottom(true).
 		Bold(false)
-	s.Selected = s.Selected.
+	style.Selected = style.Selected.
 		Foreground(lipgloss.Color(white)).
 		Background(lipgloss.Color(hoveritembg)).
 		Bold(false)
 
-	return s
+	return style
 }
 
 func makeUnselectedStyle() table.Styles {

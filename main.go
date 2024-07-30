@@ -202,11 +202,12 @@ var (
 	}
 
 	doTrash = &cli.Command{
-		Name:    "trash",
-		Aliases: []string{"tr"},
-		Usage:   "Trash a file or files",
-		Flags:   slices.Concat(trashingFlags, filterFlags),
-		Before:  beforeTrash,
+		Name:      "trash",
+		Aliases:   []string{"tr"},
+		Usage:     "Trash a file or files",
+		UsageText: "[command options] [filename(s)]",
+		Flags:     slices.Concat(trashingFlags, filterFlags),
+		Before:    beforeTrash,
 		Action: func(ctx *cli.Context) error {
 			var filesToTrash files.Files
 			for _, arg := range ctx.Args().Slice() {
@@ -280,11 +281,12 @@ var (
 	}
 
 	doRestore = &cli.Command{
-		Name:    "restore",
-		Aliases: []string{"re"},
-		Usage:   "Restore a trashed file or files",
-		Flags:   slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
-		Before:  beforeCommands,
+		Name:      "restore",
+		Aliases:   []string{"re"},
+		Usage:     "Restore a trashed file or files",
+		UsageText: "[command options] [filename(s)]",
+		Flags:     slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
+		Before:    beforeCommands,
 		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
@@ -311,11 +313,12 @@ var (
 	}
 
 	doClean = &cli.Command{
-		Name:    "clean",
-		Aliases: []string{"cl"},
-		Usage:   "Clean files from trash",
-		Flags:   slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
-		Before:  beforeCommands,
+		Name:      "clean",
+		Aliases:   []string{"cl"},
+		Usage:     "Clean files from trash",
+		UsageText: "[command options] [filename(s)]",
+		Flags:     slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
+		Before:    beforeCommands,
 		Action: func(_ *cli.Context) error {
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {

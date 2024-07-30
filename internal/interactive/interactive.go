@@ -26,6 +26,14 @@ const (
 	space   string = " "
 	woffset int    = 13 // why this number, I don't know
 	hoffset int    = 6
+	poffset int    = 2
+
+	// TODO: figure these out dynamically based on longest of each
+	filenameColumn float64 = 0.46
+	pathColumn     float64 = 0.25
+	dateColumn     float64 = 0.15
+	sizeColumn     float64 = 0.12
+	checkColumn    float64 = 0.02
 
 	// TODO: make these configurable or something
 	borderbg    string = "5"
@@ -41,7 +49,7 @@ var (
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(borderbg))
 	regulartext = lipgloss.NewStyle().
-			Padding(0, 2)
+			Padding(0, poffset)
 	darktext = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(darkgray))
 	darkertext = lipgloss.NewStyle().
@@ -67,13 +75,12 @@ type model struct {
 
 func newModel(fls []files.File, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) model {
 	var (
-		// TODO: figure this out dynamically based on longest of each
-		fwidth  int = int(math.Round(float64(width-woffset) * 0.46))
-		owidth  int = int(math.Round(float64(width-woffset) * 0.25))
-		dwidth  int = int(math.Round(float64(width-woffset) * 0.15))
-		swidth  int = int(math.Round(float64(width-woffset) * 0.12))
-		cwidth  int = int(math.Round(float64(width-woffset) * 0.02))
-		theight int = min(height-hoffset, len(fls))
+		fwidth  = int(math.Round(float64(width-woffset) * filenameColumn))
+		owidth  = int(math.Round(float64(width-woffset) * pathColumn))
+		dwidth  = int(math.Round(float64(width-woffset) * dateColumn))
+		swidth  = int(math.Round(float64(width-woffset) * sizeColumn))
+		cwidth  = int(math.Round(float64(width-woffset) * checkColumn))
+		theight = min(height-hoffset, len(fls))
 
 		mdl = model{
 			keys:       defaultKeyMap(),
@@ -293,7 +300,7 @@ func (m model) header() string {
 	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
 
 	// offset of 2 again because of table border
-	spacerWidth = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - 2
+	spacerWidth = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - poffset
 	if spacerWidth <= 0 {
 		spacerWidth = 1 // always at least one space
 	}
@@ -521,7 +528,7 @@ func newRow(file files.File, workdir string) table.Row {
 	var time, bar string
 	time = humanize.Time(file.Date())
 	if file.IsDir() {
-		bar = strings.Repeat("─", 3)
+		bar = strings.Repeat("─", poffset+1)
 	} else {
 		bar = humanize.Bytes(uint64(file.Filesize()))
 	}

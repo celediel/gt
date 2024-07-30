@@ -73,7 +73,7 @@ type model struct {
 	files      files.Files
 }
 
-func newModel(fls []files.File, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) model {
+func newModel(fls []files.File, width, height int, readonly, once bool, workdir string, mode modes.Mode) model {
 	var (
 		fwidth  = int(math.Round(float64(width-woffset) * filenameColumn))
 		owidth  = int(math.Round(float64(width-woffset) * pathColumn))
@@ -99,7 +99,7 @@ func newModel(fls []files.File, width, height int, readonly, preselected, once b
 		mdl.workdir = filepath.Clean(workdir)
 	}
 
-	rows := mdl.freshRows(preselected)
+	rows := mdl.freshRows()
 
 	var datecolumn string
 	switch mdl.mode {
@@ -352,16 +352,12 @@ func (m model) selectedFiles() (outfile files.Files) {
 	return false
 } */
 
-func (m *model) freshRows(preselected bool) (rows []table.Row) {
+func (m *model) freshRows() (rows []table.Row) {
 	for _, file := range m.files {
 		row := newRow(file, m.workdir)
 
 		if !m.readonly {
-			row = append(row, getCheck(preselected))
-		}
-		if preselected {
-			m.selected[file.String()] = true
-			m.selectsize += file.Filesize()
+			row = append(row, getCheck(false))
 		}
 		rows = append(rows, row)
 	}
@@ -511,8 +507,8 @@ func (m *model) sort() {
 	m.table.SetRows(rows)
 }
 
-func Select(fls files.Files, width, height int, readonly, preselected, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
-	mdl := newModel(fls, width, height, readonly, preselected, once, workdir, mode)
+func Select(fls files.Files, width, height int, readonly, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
+	mdl := newModel(fls, width, height, readonly, once, workdir, mode)
 	endmodel, err := tea.NewProgram(mdl).Run()
 	if err != nil {
 		return fls, 0, err
@@ -562,16 +558,16 @@ func createTable(columns []table.Column, rows []table.Row, height int) table.Mod
 }
 
 func fixTableKeymap() table.KeyMap {
-	tbl := table.DefaultKeyMap()
+	keys := table.DefaultKeyMap()
 
 	// remove spacebar from default page down keybind, but keep the rest
-	tbl.PageDown.SetKeys(
-		slices.DeleteFunc(tbl.PageDown.Keys(), func(s string) bool {
+	keys.PageDown.SetKeys(
+		slices.DeleteFunc(keys.PageDown.Keys(), func(s string) bool {
 			return s == space
 		})...,
 	)
 
-	return tbl
+	return keys
 }
 
 func makeStyle() table.Styles {

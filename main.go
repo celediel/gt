@@ -126,7 +126,7 @@ var (
 				fmt.Fprintln(os.Stdout, msg)
 				return nil
 			}
-			selected, mode, err = interactive.Select(infiles, termwidth, termheight, false, false, false, workdir, modes.Interactive)
+			selected, mode, err = interactive.Select(infiles, termwidth, termheight, false, false, workdir, modes.Interactive)
 			if err != nil {
 				return err
 			}
@@ -202,7 +202,6 @@ var (
 		Before:  beforeTrash,
 		Action: func(ctx *cli.Context) error {
 			var filesToTrash files.Files
-			var selectall bool
 			for _, arg := range ctx.Args().Slice() {
 				file, e := files.NewDisk(arg)
 				if e != nil || workdir != "" {
@@ -211,7 +210,6 @@ var (
 					continue
 				}
 				filesToTrash = append(filesToTrash, file)
-				selectall = true
 			}
 
 			// if none of the args were files, then process find files based on filter
@@ -225,10 +223,9 @@ var (
 					return nil
 				}
 				filesToTrash = append(filesToTrash, fls...)
-				selectall = !fltr.Blank()
 			}
 
-			selected, _, err := interactive.Select(filesToTrash, termwidth, termheight, false, selectall, false, workdir, modes.Trashing)
+			selected, _, err := interactive.Select(filesToTrash, termwidth, termheight, false, false, workdir, modes.Trashing)
 			if err != nil {
 				return err
 			}
@@ -269,7 +266,7 @@ var (
 			}
 
 			// display them
-			_, _, err = interactive.Select(fls, termwidth, termheight, true, false, noInterArg, workdir, modes.Listing)
+			_, _, err = interactive.Select(fls, termwidth, termheight, true, noInterArg, workdir, modes.Listing)
 
 			return err
 		},
@@ -293,7 +290,7 @@ var (
 				return err
 			}
 
-			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, all, workdir, modes.Restoring)
+			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, workdir, modes.Restoring)
 			if err != nil {
 				return err
 			}
@@ -321,7 +318,7 @@ var (
 				return err
 			}
 
-			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, all, workdir, modes.Cleaning)
+			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, workdir, modes.Cleaning)
 			if err != nil {
 				return err
 			}

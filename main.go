@@ -123,7 +123,7 @@ var (
 				} else {
 					msg = "no files to show"
 				}
-				fmt.Fprint(os.Stdout, msg)
+				fmt.Fprintln(os.Stdout, msg)
 				return nil
 			}
 			selected, mode, err = interactive.Select(infiles, termwidth, termheight, false, false, false, workdir, modes.Interactive)
@@ -221,7 +221,7 @@ var (
 					return err
 				}
 				if len(fls) == 0 {
-					fmt.Fprintf(os.Stdout, "no files to trash")
+					fmt.Fprintln(os.Stdout, "no files to trash")
 					return nil
 				}
 				filesToTrash = append(filesToTrash, fls...)
@@ -262,7 +262,7 @@ var (
 			}
 
 			if len(fls) == 0 {
-				fmt.Fprint(os.Stdout, msg)
+				fmt.Fprintln(os.Stdout, msg)
 				return nil
 			} else if err != nil {
 				return err
@@ -287,7 +287,7 @@ var (
 			// look for files
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
-				fmt.Fprintf(os.Stdout, "no files to restore")
+				fmt.Fprintln(os.Stdout, "no files to restore")
 				return nil
 			} else if err != nil {
 				return err
@@ -315,7 +315,7 @@ var (
 		Action: func(_ *cli.Context) error {
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
-				fmt.Fprintf(os.Stdout, "no files to clean")
+				fmt.Fprintln(os.Stdout, "no files to clean")
 				return nil
 			} else if err != nil {
 				return err

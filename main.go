@@ -164,7 +164,8 @@ var (
 		for _, arg := range ctx.Args().Slice() {
 			file, e := files.NewDisk(arg)
 			if e != nil {
-				log.Fatalf("cannot trash '%s': No such file or directory", arg)
+				log.Errorf("cannot trash '%s': No such file or directory", arg)
+				continue
 			}
 			filesToTrash = append(filesToTrash, file)
 		}

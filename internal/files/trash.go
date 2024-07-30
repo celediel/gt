@@ -236,14 +236,15 @@ func TrashFile(trashDir, name string) error {
 	return nil
 }
 
-func TrashFiles(trashDir string, files ...string) (trashed int, err error) {
+func TrashFiles(trashDir string, files ...string) (trashed int) {
 	for _, file := range files {
-		if err = TrashFile(trashDir, file); err != nil {
-			return trashed, err
+		if err := TrashFile(trashDir, file); err != nil {
+			log.Errorf("error trashing file %s: %s", file, err)
+			continue
 		}
 		trashed++
 	}
-	return trashed, err
+	return trashed
 }
 
 func ConfirmTrash(confirm bool, fs Files, trashDir string) error {
@@ -254,10 +255,8 @@ func ConfirmTrash(confirm bool, fs Files, trashDir string) error {
 			tfs = append(tfs, file.Path())
 		}
 
-		trashed, err := TrashFiles(trashDir, tfs...)
-		if err != nil {
-			return err
-		}
+		trashed := TrashFiles(trashDir, tfs...)
+
 		var files string
 		if trashed == 1 {
 			files = "file"

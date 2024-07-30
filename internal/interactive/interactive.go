@@ -94,10 +94,18 @@ func newModel(fls []files.File, width, height int, readonly, preselected, once b
 
 	rows := mdl.freshRows(preselected)
 
+	var datecolumn string
+	switch mdl.mode {
+	case modes.Trashing:
+		datecolumn = "modified"
+	default:
+		datecolumn = "trashed"
+	}
+
 	columns := []table.Column{
 		{Title: "filename", Width: fwidth},
 		{Title: "path", Width: owidth},
-		{Title: "modified", Width: dwidth},
+		{Title: datecolumn, Width: dwidth},
 		{Title: "size", Width: swidth},
 	}
 	if !mdl.readonly {

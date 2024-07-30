@@ -214,10 +214,11 @@ func ConfirmClean(confirm bool, fs Files) error {
 func TrashFile(trashDir, name string) error {
 	trashinfoFilename, outPath := ensureUniqueName(filepath.Base(name), trashDir)
 
-	// TODO: write across filesystems
 	if err := os.Rename(name, outPath); err != nil {
 		if strings.Contains(err.Error(), "invalid cross-device link") {
-			return fmt.Errorf("not trashing file '%s': On different filesystem from trash directory", name)
+			// TODO: use $topdir/.Trash as per XDG spec
+			// TODO: maybe figure out if filesystem is truly different or is a btrfs subvolume
+			return err
 		}
 		return err
 	}
@@ -239,7 +240,7 @@ func TrashFile(trashDir, name string) error {
 func TrashFiles(trashDir string, files ...string) (trashed int) {
 	for _, file := range files {
 		if err := TrashFile(trashDir, file); err != nil {
-			log.Errorf("error trashing file %s: %s", file, err)
+			log.Errorf("cannot trash '%s': %s", file, err)
 			continue
 		}
 		trashed++

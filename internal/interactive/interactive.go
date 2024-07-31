@@ -259,16 +259,16 @@ func (m model) showHelp() string {
 	// TODO: maybe use bubbletea built in help
 	var keys = []string{
 		fmt.Sprintf("%s %s (%s)", darktext.Render(m.keys.sort.Help().Key), darkertext.Render(m.keys.sort.Help().Desc), m.sorting.String()),
-		fmt.Sprintf("%s %s", darktext.Render(m.keys.quit.Help().Key), darkertext.Render(m.keys.quit.Help().Desc)),
+		styleKey(m.keys.quit),
 	}
 	if !m.readonly {
 		if m.mode != modes.Interactive {
 			keys = append([]string{
-				fmt.Sprintf("%s %s", darktext.Render(m.keys.doit.Help().Key), darkertext.Render(m.keys.doit.Help().Desc)),
+				styleKey(m.keys.doit),
 			}, keys...)
 		}
 		keys = append([]string{
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.mark.Help().Key), darkertext.Render(m.keys.mark.Help().Desc)),
+			styleKey(m.keys.mark),
 		}, keys...)
 	}
 	return strings.Join(keys, darkesttext.Render(" • "))
@@ -279,13 +279,13 @@ func (m model) header() string {
 		right, left string
 		spacerWidth int
 		keys        = []string{
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.rstr.Help().Key), darkertext.Render(m.keys.rstr.Help().Desc)),
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.clen.Help().Key), darkertext.Render(m.keys.clen.Help().Desc)),
+			styleKey(m.keys.rstr),
+			styleKey(m.keys.clen),
 		}
 		selectKeys = []string{
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.todo.Help().Key), darkertext.Render(m.keys.todo.Help().Desc)),
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.nada.Help().Key), darkertext.Render(m.keys.nada.Help().Desc)),
-			fmt.Sprintf("%s %s", darktext.Render(m.keys.invr.Help().Key), darkertext.Render(m.keys.invr.Help().Desc)),
+			styleKey(m.keys.todo),
+			styleKey(m.keys.nada),
+			styleKey(m.keys.invr),
 		}
 		dot     = darkesttext.Render("•")
 		wideDot = darkesttext.Render(" • ")
@@ -598,4 +598,8 @@ func makeUnselectedStyle() table.Styles {
 		Background(lipgloss.NoColor{}).
 		Bold(false)
 	return style
+}
+
+func styleKey(key key.Binding) string {
+	return fmt.Sprintf("%s %s", darktext.Render(key.Help().Key), darkertext.Render(key.Help().Desc))
 }

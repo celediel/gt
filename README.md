@@ -48,7 +48,7 @@ Find files in the trash based on the filter flags and any filename args.
 #### flags
 
 *--all*, *-a*
-operate on all files in trash
+restore all files in trash
 
 *--original-path* dir, *-O* dir
 restore files trashed from this directory
@@ -60,7 +60,7 @@ Find files in the trash based on the filter flags and any filename args.
 #### flags
 
 *--all*, *-a*
-operate on all files in trash
+clean all files in trash
 
 *--original-path* dir, *-O* dir
 remove files trashed from this directory

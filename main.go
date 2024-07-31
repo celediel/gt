@@ -23,7 +23,7 @@ import (
 const (
 	appname     string = "gt"
 	appsubtitle string = "xdg trash cli"
-	appversion  string = "v0.0.1"
+	appversion  string = "v0.0.2"
 	appdesc     string = `A small command line program to interface with the
 Freedesktop.org / XDG trash specification.
 

@@ -262,7 +262,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.mark):
 			m.toggleItem(m.table.Cursor())
 		case key.Matches(msg, m.keys.doit):
-			if !m.readonly && m.mode != modes.Interactive {
+			if !m.readonly && m.mode != modes.Interactive && len(m.fltrfiles) > 1 {
 				return m.quit(false)
 			}
 		case key.Matches(msg, m.keys.nada):
@@ -284,8 +284,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.fltr):
 			m.filtering = true
 		case key.Matches(msg, m.keys.clfl):
-			m.filter = ""
-			m.applyFilter()
+			if m.filter != "" {
+				m.filter = ""
+				m.applyFilter()
+			}
 		case key.Matches(msg, m.keys.quit):
 			return m.quit(true)
 		}
@@ -297,10 +299,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	var panels []string
+	if !m.once {
+		panels = append(panels, m.header())
+	}
+
+	panels = append(panels, style.Render(m.table.View()), m.footer())
+
 	return lipgloss.JoinVertical(lipgloss.Top,
-		m.header(),
-		style.Render(m.table.View()),
-		m.footer(),
+		panels...,
 	)
 }
 
@@ -371,7 +378,7 @@ func (m model) header() string {
 		if m.filter != "" || m.filtering {
 			title += " (filtered)"
 		}
-		right = fmt.Sprintf(" %s %d files in trash", title, len(m.table.Rows()))
+		right = fmt.Sprintf(" %s %d files in trash", title, len(m.fltrfiles))
 		left = ""
 	}
 
@@ -403,7 +410,7 @@ func (m model) quit(unselectAll bool) (model, tea.Cmd) {
 }
 
 func (m model) execute(mode modes.Mode) (model, tea.Cmd) {
-	if m.mode != modes.Interactive || len(m.selected) <= 0 {
+	if m.mode != modes.Interactive || len(m.selected) <= 0 || len(m.fltrfiles) <= 0 {
 		var cmd tea.Cmd
 		return m, cmd
 	}
@@ -415,7 +422,7 @@ func (m model) execute(mode modes.Mode) (model, tea.Cmd) {
 }
 
 func (m model) selectedFiles() (outfile files.Files) {
-	for _, file := range m.files {
+	for _, file := range m.fltrfiles {
 		if m.selected[file.String()] {
 			outfile = append(outfile, file)
 		}
@@ -492,8 +499,8 @@ func (m *model) toggleItem(index int) (selected bool) {
 		return false
 	}
 
-	name := m.files[index].String()
-	size := m.files[index].Filesize()
+	name := m.fltrfiles[index].String()
+	size := m.fltrfiles[index].Filesize()
 
 	// select the thing
 	if v, ok := m.selected[name]; v && ok {
@@ -545,8 +552,8 @@ func (m *model) invertSelection() {
 	var newrows []table.Row
 
 	for index, row := range m.table.Rows() {
-		name := m.files[index].String()
-		size := m.files[index].Filesize()
+		name := m.fltrfiles[index].String()
+		size := m.fltrfiles[index].Filesize()
 		if v, ok := m.selected[name]; v && ok {
 			delete(m.selected, name)
 			m.selectsize -= size
@@ -582,15 +589,19 @@ func (m *model) applyFilter() {
 	m.fltrfiles = m.filteredFiles()
 	var rows = []table.Row{}
 	for _, file := range m.fltrfiles {
-		r := newRow(file, m.workdir)
+		row := newRow(file, m.workdir)
 		if !m.readonly {
-			r = append(r, getCheck(m.selected[file.String()]))
+			row = append(row, getCheck(m.selected[file.String()]))
 		}
-		rows = append(rows, r)
+		rows = append(rows, row)
 	}
 
-	if len(rows) == 0 {
-		rows = append(rows, table.Row{"no files matched filter!", bar, bar, bar, uncheck})
+	if len(rows) < 1 {
+		row := table.Row{"no files matched filter!", bar, bar, bar}
+		if !m.readonly {
+			row = append(row, uncheck)
+		}
+		rows = append(rows, row)
 	}
 	m.table.SetRows(rows)
 	m.updateTableHeight()

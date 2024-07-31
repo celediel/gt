@@ -44,7 +44,7 @@ _usage_:
 	trash [command options] [filename(s)]
 
 _info_:
-	The trash command finds files on the filesystem based on the filter flags and any filename args, and displays them in a sortable and filterable table, allowing them to be selectively trashed.
+	The trash command finds files on the filesystem based on the filter flags and any filename args, and displays them in an interactive table, allowing them to be sorted, filtered, and selectively trashed.
 
 _flags_:
 	*--recursive*, *-r*
@@ -64,7 +64,7 @@ _usage_:
 	list [command options] [filename(s)]
 
 _info_:
-	The trash command finds files in the trash based on the filter flags and any filename args, and displays them in a sortable and filterable table.
+	The list command finds files in the trash based on the filter flags and any filename args, and displays them in an interactive table, allowing them to be sorted, filtered.
 
 _flags:_
 	*--non-interactive*, *-n*
@@ -81,7 +81,7 @@ _usage_:
 	restore [command options] [filename(s)]
 
 _info_:
-	The trash command finds files in the trash based on the filter flags and any filename args, and displays them in a sortable and filterable table, allowing them to be selectively restored.
+	The restore command finds files in the trash based on the filter flags and any filename args, and displays them in an interactive table, allowing them to be sorted, filtered, and selectively restored.
 
 _flags:_
 	*--all*, *-a*
@@ -98,7 +98,7 @@ _usage_:
 	clean [command options] [filename(s)]
 
 _info_:
-	The trash command finds files in the trash based on the filter flags and any filename args, and displays them in a sortable and filterable table, allowing them to be selectively removed permanently.
+	The clean command finds files in the trash based on the filter flags and any filename args, and displays them in an interactive table, allowing them to be sorted, filtered, and selectively removed permanently.
 
 _flags:_
 	*--all*, *-a*

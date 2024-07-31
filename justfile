@@ -30,6 +30,11 @@ run-args args:
 install:
 	go install {{cmd}}
 
+# install manpages into $HOME/.local/share/man
+install-man:
+	mkdir -p $HOME/.local/share/man/man1
+	cp {{binary}}.1 $HOME/.local/share/man/man1/{{binary}}.1
+
 # clean up after yourself
 clean:
 	rm {{output}}
@@ -41,3 +46,7 @@ test:
 # run linter
 check:
 	staticcheck ./...
+
+# generate manpage
+man:
+	scdoc < {{binary}}.1.scd > {{binary}}.1

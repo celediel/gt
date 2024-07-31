@@ -18,7 +18,6 @@ import (
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/term"
 )
 
 const (
@@ -46,8 +45,6 @@ var (
 	askconfirm, all            bool
 	workdir, ogdir             cli.Path
 	recursive                  bool
-	termwidth                  int
-	termheight                 int
 
 	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
@@ -64,15 +61,6 @@ var (
 		} else {
 			log.Errorf("unknown log level '%s' (possible values: debug, info, warn, error, fatal, default: warn)", loglvl)
 		}
-
-		// read the term height and width for tables
-		width, height, e := term.GetSize(int(os.Stdout.Fd()))
-		if e != nil {
-			width = 80
-			height = 24
-		}
-		termwidth = width
-		termheight = height
 
 		// ensure trash directories exist
 		if _, e := os.Stat(trashDir); os.IsNotExist(e) {
@@ -133,7 +121,7 @@ var (
 				fmt.Fprintln(os.Stdout, msg)
 				return nil
 			}
-			selected, mode, err = interactive.Select(infiles, termwidth, termheight, false, false, workdir, modes.Interactive)
+			selected, mode, err = interactive.Select(infiles, false, false, workdir, modes.Interactive)
 			if err != nil {
 				return err
 			}
@@ -234,7 +222,7 @@ var (
 				filesToTrash = append(filesToTrash, fls...)
 			}
 
-			selected, _, err := interactive.Select(filesToTrash, termwidth, termheight, false, false, workdir, modes.Trashing)
+			selected, _, err := interactive.Select(filesToTrash, false, false, workdir, modes.Trashing)
 			if err != nil {
 				return err
 			}
@@ -273,7 +261,7 @@ var (
 				return err
 			}
 
-			return interactive.Show(fls, termwidth, termheight, noInterArg, workdir)
+			return interactive.Show(fls, noInterArg, workdir)
 		},
 	}
 
@@ -295,7 +283,7 @@ var (
 				return err
 			}
 
-			selected, _, err := interactive.Select(fls, termwidth, termheight, all, all, workdir, modes.Restoring)
+			selected, _, err := interactive.Select(fls, all, all, workdir, modes.Restoring)
 			if err != nil {
 				return err
 			}
@@ -324,7 +312,7 @@ var (
 				return err
 			}
 
-			selected, _, err := interactive.Select(fls, termwidth, termheight, all, all, workdir, modes.Cleaning)
+			selected, _, err := interactive.Select(fls, all, all, workdir, modes.Cleaning)
 			if err != nil {
 				return err
 			}

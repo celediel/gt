@@ -4,6 +4,7 @@ package interactive
 import (
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"git.burning.moe/celediel/gt/internal/files"
 	"git.burning.moe/celediel/gt/internal/interactive/modes"
 	"git.burning.moe/celediel/gt/internal/interactive/sorting"
+	"golang.org/x/term"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
@@ -84,64 +86,37 @@ type model struct {
 	fltrfiles  files.Files
 }
 
-func newModel(fls []files.File, width, height int, selectall, readonly, once bool, workdir string, mode modes.Mode) model {
-	var (
-		fwidth  = int(math.Round(float64(width-woffset) * filenameColumnW))
-		owidth  = int(math.Round(float64(width-woffset) * pathColumnW))
-		dwidth  = int(math.Round(float64(width-woffset) * dateColumnW))
-		swidth  = int(math.Round(float64(width-woffset) * sizeColumnW))
-		cwidth  = int(math.Round(float64(width-woffset) * checkColumnW))
-		theight = min(height-hoffset, len(fls))
+func newModel(fls []files.File, selectall, readonly, once bool, workdir string, mode modes.Mode) (m model) {
+	m = model{
+		keys:       defaultKeyMap(),
+		readonly:   readonly,
+		once:       once,
+		mode:       mode,
+		selected:   map[string]bool{},
+		selectsize: 0,
+		files:      fls,
+	}
 
-		mdl = model{
-			keys:       defaultKeyMap(),
-			readonly:   readonly,
-			once:       once,
-			termheight: height,
-			termwidth:  width,
-			mode:       mode,
-			selected:   map[string]bool{},
-			selectsize: 0,
-			files:      fls,
-		}
-	)
+	m.termwidth, m.termheight = termSizes()
 
 	if workdir != "" {
-		mdl.workdir = filepath.Clean(workdir)
+		m.workdir = filepath.Clean(workdir)
 	}
 
-	rows := mdl.freshRows()
+	rows := m.freshRows()
+	columns := m.freshColumns()
 
-	var datecolumn string
-	switch mdl.mode {
-	case modes.Trashing:
-		datecolumn = modifiedColumn
-	default:
-		datecolumn = trashedColumn
-	}
+	theight := min(m.termheight-hoffset, len(fls))
+	m.table = createTable(columns, rows, theight)
 
-	columns := []table.Column{
-		{Title: filenameColumn, Width: fwidth},
-		{Title: pathColumn, Width: owidth},
-		{Title: datecolumn, Width: dwidth},
-		{Title: sizeColumn, Width: swidth},
-	}
-	if !mdl.readonly {
-		columns = append(columns, table.Column{Title: uncheck, Width: cwidth})
-	} else {
-		columns[0].Width += cwidth
-	}
-
-	mdl.table = createTable(columns, rows, theight)
-
-	mdl.sorting = sorting.Name
-	mdl.sort()
+	m.sorting = sorting.Name
+	m.sort()
 
 	if selectall {
-		mdl.selectAll()
+		m.selectAll()
 	}
 
-	return mdl
+	return
 }
 
 type keyMap struct {
@@ -239,6 +214,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.updateTableSize()
 	case tea.KeyMsg:
 		if m.filtering {
 			switch {
@@ -612,6 +589,48 @@ func (m *model) filteredFiles() (filteredFiles files.Files) {
 	return
 }
 
+func (m *model) freshColumns() []table.Column {
+	var (
+		fwidth     = int(math.Round(float64(m.termwidth-woffset) * filenameColumnW))
+		owidth     = int(math.Round(float64(m.termwidth-woffset) * pathColumnW))
+		dwidth     = int(math.Round(float64(m.termwidth-woffset) * dateColumnW))
+		swidth     = int(math.Round(float64(m.termwidth-woffset) * sizeColumnW))
+		cwidth     = int(math.Round(float64(m.termwidth-woffset) * checkColumnW))
+		datecolumn string
+	)
+
+	switch m.mode {
+	case modes.Trashing:
+		datecolumn = modifiedColumn
+	default:
+		datecolumn = trashedColumn
+	}
+
+	columns := []table.Column{
+		{Title: filenameColumn, Width: fwidth},
+		{Title: pathColumn, Width: owidth},
+		{Title: datecolumn, Width: dwidth},
+		{Title: sizeColumn, Width: swidth},
+	}
+
+	if !m.readonly {
+		columns = append(columns, table.Column{Title: uncheck, Width: cwidth})
+	} else {
+		columns[0].Width += cwidth
+	}
+
+	return columns
+}
+
+func (m *model) updateTableSize() {
+	width, height := termSizes()
+	m.termheight = height
+	m.termwidth = width - poffset
+	m.table.SetWidth(m.termwidth)
+	m.updateTableHeight()
+	m.table.SetColumns(m.freshColumns())
+}
+
 func (m *model) updateTableHeight() {
 	h := min(m.termheight-hoffset, len(m.table.Rows()))
 	m.table.SetHeight(h)
@@ -620,8 +639,8 @@ func (m *model) updateTableHeight() {
 	}
 }
 
-func Select(fls files.Files, width, height int, selectall, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
-	mdl := newModel(fls, width, height, selectall, false, once, workdir, mode)
+func Select(fls files.Files, selectall, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
+	mdl := newModel(fls, selectall, false, once, workdir, mode)
 	endmodel, err := tea.NewProgram(mdl).Run()
 	if err != nil {
 		return fls, 0, err
@@ -633,8 +652,8 @@ func Select(fls files.Files, width, height int, selectall, once bool, workdir st
 	return m.selectedFiles(), m.mode, nil
 }
 
-func Show(fls files.Files, width, height int, once bool, workdir string) error {
-	mdl := newModel(fls, width, height, false, true, once, workdir, modes.Listing)
+func Show(fls files.Files, once bool, workdir string) error {
+	mdl := newModel(fls, false, true, once, workdir, modes.Listing)
 	if _, err := tea.NewProgram(mdl).Run(); err != nil {
 		return err
 	}
@@ -723,4 +742,15 @@ func isMatch(pattern, filename string) bool {
 	p := strings.ToLower(pattern)
 	f := strings.ToLower(filename)
 	return fuzzy.Match(p, f)
+}
+
+func termSizes() (width int, height int) {
+	// read the term height and width for tables
+	var err error
+	width, height, err = term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		width = 80
+		height = 24
+	}
+	return
 }

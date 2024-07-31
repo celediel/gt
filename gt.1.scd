@@ -51,7 +51,7 @@ _flags_:
 		operate on files recursively
 
 	*--work-dir* dir, *-w* dir
-		operate on files in this `DIRECTORY`
+		operate on files in this directory
 
 	*--hidden*, *-h*
 		operate on hidden files

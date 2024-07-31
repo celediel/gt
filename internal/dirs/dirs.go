@@ -10,8 +10,8 @@ import (
 const sep = string(os.PathSeparator)
 
 var (
-	home   string = os.Getenv("HOME")
-	pwd, _        = os.Getwd()
+	home   = os.Getenv("HOME")
+	pwd, _ = os.Getwd()
 )
 
 // UnExpand returns dir after expanding some directory shortcuts

@@ -312,7 +312,6 @@ func (m model) View() string {
 }
 
 func (m model) showHelp() string {
-	// TODO: maybe use bubbletea built in help
 	var filterText string
 	if m.filter != "" {
 		filterText = fmt.Sprintf(" (%s)", m.filter)

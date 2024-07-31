@@ -27,9 +27,8 @@ func SortByModified(a, b File) int {
 		return 1
 	} else if a.Date().After(b.Date()) {
 		return -1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func SortByModifiedReverse(a, b File) int {
@@ -37,9 +36,8 @@ func SortByModifiedReverse(a, b File) int {
 		return 1
 	} else if a.Date().Before(b.Date()) {
 		return -1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func SortBySize(a, b File) int {
@@ -87,9 +85,8 @@ func SortDirectoriesFirst(a, b File) int {
 		return 1
 	} else if a.IsDir() && !b.IsDir() {
 		return -1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func SortDirectoriesLast(a, b File) int {
@@ -97,9 +94,8 @@ func SortDirectoriesLast(a, b File) int {
 		return 1
 	} else if !a.IsDir() && b.IsDir() {
 		return -1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func doNameSort(a, b File) int {
@@ -119,7 +115,6 @@ func doNameSort(a, b File) int {
 func getSortingSize(f File) int64 {
 	if f.IsDir() {
 		return -1
-	} else {
-		return f.Filesize()
 	}
+	return f.Filesize()
 }

@@ -296,19 +296,19 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 		// doesn't exist, so use it
 		path := filepath.Join(filedir, filename)
 		return info, path
-	} else {
-		// otherwise, try random suffixes until one works
-		log.Debugf("%s exists in trash, generating random name", filename)
-		var tries int
-		for {
-			tries++
-			rando := randomFilename(randomStrLength)
-			newName := filepath.Join(infodir, filename+rando+trashInfoExt)
-			if _, err := os.Stat(newName); os.IsNotExist(err) {
-				path := filepath.Join(filedir, filename+rando)
-				log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
-				return newName, path
-			}
+	}
+
+	// otherwise, try random suffixes until one works
+	log.Debugf("%s exists in trash, generating random name", filename)
+	var tries int
+	for {
+		tries++
+		rando := randomFilename(randomStrLength)
+		newName := filepath.Join(infodir, filename+rando+trashInfoExt)
+		if _, err := os.Stat(newName); os.IsNotExist(err) {
+			path := filepath.Join(filedir, filename+rando)
+			log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
+			return newName, path
 		}
 	}
 }

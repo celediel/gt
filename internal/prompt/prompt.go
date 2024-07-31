@@ -11,8 +11,6 @@ import (
 	"golang.org/x/term"
 )
 
-// TODO: use charm stuff for this
-
 func YesNo(prompt string) bool {
 	return AskRune(prompt, "y/n") == 'y'
 }

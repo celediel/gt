@@ -220,7 +220,7 @@ var (
 				filesToTrash = append(filesToTrash, file)
 			}
 
-			// if none of the args were files, then process find files based on filter
+			// if none of the args were files, then find files based on filter
 			if len(filesToTrash) == 0 {
 				fls, err := files.FindDisk(workdir, recursive, fltr)
 				if err != nil {
@@ -255,7 +255,6 @@ var (
 		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
-			// look for files
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 
 			var msg string
@@ -273,10 +272,7 @@ var (
 				return err
 			}
 
-			// display them
-			_, _, err = interactive.Select(fls, termwidth, termheight, true, noInterArg, workdir, modes.Listing)
-
-			return err
+			return interactive.Show(fls, termwidth, termheight, noInterArg, workdir)
 		},
 	}
 
@@ -290,7 +286,6 @@ var (
 		Action: func(_ *cli.Context) error {
 			log.Debugf("searching in directory %s for files", trashDir)
 
-			// look for files
 			fls, err := files.FindTrash(trashDir, ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, "no files to restore")
@@ -299,7 +294,7 @@ var (
 				return err
 			}
 
-			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, workdir, modes.Restoring)
+			selected, _, err := interactive.Select(fls, termwidth, termheight, all, all, workdir, modes.Restoring)
 			if err != nil {
 				return err
 			}
@@ -328,7 +323,7 @@ var (
 				return err
 			}
 
-			selected, _, err := interactive.Select(fls, termwidth, termheight, false, all, workdir, modes.Cleaning)
+			selected, _, err := interactive.Select(fls, termwidth, termheight, all, all, workdir, modes.Cleaning)
 			if err != nil {
 				return err
 			}

@@ -84,7 +84,7 @@ type model struct {
 	fltrfiles  files.Files
 }
 
-func newModel(fls []files.File, width, height int, readonly, once bool, workdir string, mode modes.Mode) model {
+func newModel(fls []files.File, width, height int, selectall, readonly, once bool, workdir string, mode modes.Mode) model {
 	var (
 		fwidth  = int(math.Round(float64(width-woffset) * filenameColumnW))
 		owidth  = int(math.Round(float64(width-woffset) * pathColumnW))
@@ -136,6 +136,10 @@ func newModel(fls []files.File, width, height int, readonly, once bool, workdir 
 
 	mdl.sorting = sorting.Name
 	mdl.sort()
+
+	if selectall {
+		mdl.selectAll()
+	}
 
 	return mdl
 }
@@ -614,8 +618,8 @@ func (m *model) updateTableHeight() {
 	}
 }
 
-func Select(fls files.Files, width, height int, readonly, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
-	mdl := newModel(fls, width, height, readonly, once, workdir, mode)
+func Select(fls files.Files, width, height int, selectall, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {
+	mdl := newModel(fls, width, height, selectall, false, once, workdir, mode)
 	endmodel, err := tea.NewProgram(mdl).Run()
 	if err != nil {
 		return fls, 0, err
@@ -625,6 +629,14 @@ func Select(fls files.Files, width, height int, readonly, once bool, workdir str
 		return fls, 0, fmt.Errorf("model isn't the right type?? what has happened")
 	}
 	return m.selectedFiles(), m.mode, nil
+}
+
+func Show(fls files.Files, width, height int, once bool, workdir string) error {
+	mdl := newModel(fls, width, height, false, true, once, workdir, modes.Listing)
+	if _, err := tea.NewProgram(mdl).Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func newRow(file files.File, workdir string) table.Row {

@@ -326,19 +326,14 @@ func (m model) showHelp() string {
 
 	if !m.readonly {
 		if m.mode != modes.Interactive {
-			keys = append([]string{
-				styleKey(m.keys.doit),
-			}, keys...)
+			keys = append([]string{styleKey(m.keys.doit)}, keys...)
 		}
-		keys = append([]string{
-			styleKey(m.keys.mark),
-		}, keys...)
+		keys = append([]string{styleKey(m.keys.mark)}, keys...)
 	}
 	return strings.Join(keys, darkesttext.Render(" • "))
 }
 
 func (m model) header() string {
-	// TODO: clean this ugly thing up
 	var (
 		right, left string
 		spacerWidth int
@@ -355,35 +350,32 @@ func (m model) header() string {
 			styleKey(m.keys.clfl),
 			styleKey(m.keys.apfl),
 		}
-		dot     = darkesttext.Render("•")
-		wideDot = darkesttext.Render(" • ")
+		dot       = darkesttext.Render("•")
+		wideDot   = darkesttext.Render(" • ")
+		keysFmt   = strings.Join(keys, wideDot)
+		selectFmt = strings.Join(selectKeys, wideDot)
+		filterFmt = strings.Join(filterKeys, wideDot)
 	)
 
-	right = " " // to offset from the table border
-	switch m.mode {
-	case modes.Interactive:
-		right += strings.Join(keys, wideDot)
-	default:
-		right += m.mode.String()
-		if m.workdir != "" {
-			right += fmt.Sprintf(" in %s", dirs.UnExpand(m.workdir, ""))
-		}
-	}
-	right += fmt.Sprintf(" %s %s", dot, strings.Join(selectKeys, wideDot))
-
-	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, humanize.Bytes(uint64(m.selectsize)))
-
-	if m.mode == modes.Listing {
-		title := "Showing"
+	switch {
+	case m.filtering:
+		right = fmt.Sprintf(" Filtering %s %s", dot, filterFmt)
+	case m.mode == modes.Interactive:
+		right = fmt.Sprintf(" %s %s %s", keysFmt, dot, selectFmt)
+		left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, humanize.Bytes(uint64(m.selectsize)))
+	case m.mode == modes.Listing:
+		var filtered string
 		if m.filter != "" || m.filtering {
-			title += " (filtered)"
+			filtered = " (filtered)"
 		}
-		right = fmt.Sprintf(" %s %d files in trash", title, len(m.fltrfiles))
-		left = ""
-	}
-
-	if m.filtering {
-		right = fmt.Sprintf(" Filtering %s %s", dot, strings.Join(filterKeys, wideDot))
+		right = fmt.Sprintf(" Showing%s %d files in trash", filtered, len(m.fltrfiles))
+	default:
+		var wd string
+		if m.workdir != "" {
+			wd = " in " + dirs.UnExpand(m.workdir, "")
+		}
+		right = fmt.Sprintf(" %s%s %s %s", m.mode.String(), wd, dot, selectFmt)
+		left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, humanize.Bytes(uint64(m.selectsize)))
 	}
 
 	// offset of 2 again because of table border

@@ -34,6 +34,7 @@ const (
 	modifiedColumn string = "modified"
 	trashedColumn  string = "trashed"
 	sizeColumn     string = "size"
+	bar            string = "───"
 
 	// TODO: figure these out dynamically based on longest of each
 	filenameColumnW float64 = 0.46
@@ -359,7 +360,7 @@ func (m model) header() string {
 	}
 	right += fmt.Sprintf(" %s %s", dot, strings.Join(selectKeys, wideDot))
 
-	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
+	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, humanize.Bytes(uint64(m.selectsize)))
 
 	if m.mode == modes.Listing {
 		title := "Showing"
@@ -483,7 +484,7 @@ func (m *model) updateRows(selected bool) {
 }
 
 func (m *model) toggleItem(index int) (selected bool) {
-	if m.readonly {
+	if m.readonly || len(m.fltrfiles) == 0 {
 		return false
 	}
 
@@ -509,7 +510,7 @@ func (m *model) toggleItem(index int) (selected bool) {
 }
 
 func (m *model) selectAll() {
-	if m.readonly {
+	if m.readonly || len(m.fltrfiles) == 0 {
 		return
 	}
 
@@ -533,7 +534,7 @@ func (m *model) unselectAll() {
 }
 
 func (m *model) invertSelection() {
-	if m.readonly {
+	if m.readonly || len(m.fltrfiles) == 0 {
 		return
 	}
 
@@ -584,6 +585,9 @@ func (m *model) applyFilter() {
 		rows = append(rows, r)
 	}
 
+	if len(rows) == 0 {
+		rows = append(rows, table.Row{"no files matched filter!", bar, bar, bar, uncheck})
+	}
 	m.table.SetRows(rows)
 	m.updateTableHeight()
 }
@@ -624,18 +628,18 @@ func Select(fls files.Files, width, height int, readonly, once bool, workdir str
 }
 
 func newRow(file files.File, workdir string) table.Row {
-	var time, bar string
+	var time, size string
 	time = humanize.Time(file.Date())
 	if file.IsDir() {
-		bar = strings.Repeat("─", poffset+1)
+		size = bar
 	} else {
-		bar = humanize.Bytes(uint64(file.Filesize()))
+		size = humanize.Bytes(uint64(file.Filesize()))
 	}
 	return table.Row{
 		dirs.UnEscape(file.Name()),
 		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
 		time,
-		bar,
+		size,
 	}
 }
 

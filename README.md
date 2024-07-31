@@ -117,6 +117,6 @@ See also gt(1) or `gt --help`.
 
 ## Screenshots
 
-![trashing screenshot](./dist/Screenshot01.png)
+![trashing screenshot](./screenshots/Screenshot01.png)
 
-![list screenshot](./dist/Screenshot02.png)
+![list screenshot](./screenshots/Screenshot02.png)

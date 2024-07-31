@@ -114,3 +114,9 @@ operate on files smaller than size
 operate on files matching mode mode
 
 See also gt(1) or `gt --help`.
+
+## Screenshots
+
+![trashing screenshot](./dist/Screenshot01.png)
+
+![list screenshot](./dist/Screenshot02.png)

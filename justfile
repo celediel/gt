@@ -45,7 +45,7 @@ install-man:
 clean:
 	-rm {{output}}
 	-rm {{output}}-musl
-	-rm {{dist_dir}}/*
+	-rm {{dist_dir}}/*.tar.gz
 
 # run go tests
 test:

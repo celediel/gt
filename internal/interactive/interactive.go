@@ -594,7 +594,7 @@ func (m *model) applyFilter() {
 
 func (m *model) filteredFiles() (filteredFiles files.Files) {
 	for _, file := range m.files {
-		if fuzzy.Match(m.filter, file.Name()) {
+		if isMatch(m.filter, file.Name()) {
 			filteredFiles = append(filteredFiles, file)
 		} else {
 			if _, ok := m.selected[file.String()]; ok {
@@ -703,4 +703,10 @@ func makeUnselectedStyle() table.Styles {
 
 func styleKey(key key.Binding) string {
 	return fmt.Sprintf("%s %s", darktext.Render(key.Help().Key), darkertext.Render(key.Help().Desc))
+}
+
+func isMatch(pattern, filename string) bool {
+	p := strings.ToLower(pattern)
+	f := strings.ToLower(filename)
+	return fuzzy.Match(p, f)
 }

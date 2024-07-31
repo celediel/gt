@@ -18,6 +18,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
 const (
@@ -71,12 +72,15 @@ type model struct {
 	selectsize int64
 	readonly   bool
 	once       bool
+	filtering  bool
+	filter     string
 	termheight int
 	termwidth  int
 	mode       modes.Mode
 	sorting    sorting.Sorting
 	workdir    string
 	files      files.Files
+	fltrfiles  files.Files
 }
 
 func newModel(fls []files.File, width, height int, readonly, once bool, workdir string, mode modes.Mode) model {
@@ -145,6 +149,10 @@ type keyMap struct {
 	clen key.Binding
 	sort key.Binding
 	rort key.Binding
+	fltr key.Binding
+	clfl key.Binding
+	apfl key.Binding
+	bksp key.Binding
 	quit key.Binding
 }
 
@@ -186,6 +194,22 @@ func defaultKeyMap() keyMap {
 			key.WithKeys("S"),
 			key.WithHelp("S", "sort (reverse)"),
 		),
+		fltr: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "filter"),
+		),
+		apfl: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "apply filter"),
+		),
+		clfl: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "clear filter"),
+		),
+		bksp: key.NewBinding(
+			key.WithKeys("backspace"),
+			key.WithHelp("backspace", "backspace"),
+		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
@@ -211,6 +235,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.filtering {
+			switch {
+			case key.Matches(msg, m.keys.clfl):
+				m.filter = ""
+				m.filtering = false
+			case key.Matches(msg, m.keys.apfl):
+				m.filtering = false
+			case key.Matches(msg, m.keys.bksp):
+				if len(m.filter) > 0 {
+					m.filter = m.filter[:len(m.filter)-1]
+				}
+			default:
+				m.filter += msg.String()
+			}
+			m.applyFilter()
+			return m, cmd
+		}
+
 		switch {
 		case key.Matches(msg, m.keys.mark):
 			m.toggleItem(m.table.Cursor())
@@ -234,6 +276,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.rort):
 			m.sorting = m.sorting.Prev()
 			m.sort()
+		case key.Matches(msg, m.keys.fltr):
+			m.filtering = true
+		case key.Matches(msg, m.keys.clfl):
+			m.filter = ""
+			m.applyFilter()
 		case key.Matches(msg, m.keys.quit):
 			return m.quit(true)
 		}
@@ -245,22 +292,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	var panels []string
-
-	if m.mode != modes.Listing {
-		panels = append(panels, m.header())
-	}
-	panels = append(panels, style.Render(m.table.View()), m.footer())
-
-	return lipgloss.JoinVertical(lipgloss.Top, panels...)
+	return lipgloss.JoinVertical(lipgloss.Top,
+		m.header(),
+		style.Render(m.table.View()),
+		m.footer(),
+	)
 }
 
 func (m model) showHelp() string {
 	// TODO: maybe use bubbletea built in help
-	var keys = []string{
+	var filterText string
+	if m.filter != "" {
+		filterText = fmt.Sprintf(" (%s)", m.filter)
+	}
+
+	keys := []string{
+		fmt.Sprintf("%s %s%s", darktext.Render(m.keys.fltr.Help().Key), darkertext.Render(m.keys.fltr.Help().Desc), filterText),
 		fmt.Sprintf("%s %s (%s)", darktext.Render(m.keys.sort.Help().Key), darkertext.Render(m.keys.sort.Help().Desc), m.sorting.String()),
 		styleKey(m.keys.quit),
 	}
+
 	if !m.readonly {
 		if m.mode != modes.Interactive {
 			keys = append([]string{
@@ -275,6 +326,7 @@ func (m model) showHelp() string {
 }
 
 func (m model) header() string {
+	// TODO: clean this ugly thing up
 	var (
 		right, left string
 		spacerWidth int
@@ -286,6 +338,10 @@ func (m model) header() string {
 			styleKey(m.keys.todo),
 			styleKey(m.keys.nada),
 			styleKey(m.keys.invr),
+		}
+		filterKeys = []string{
+			styleKey(m.keys.clfl),
+			styleKey(m.keys.apfl),
 		}
 		dot     = darkesttext.Render("•")
 		wideDot = darkesttext.Render(" • ")
@@ -304,6 +360,19 @@ func (m model) header() string {
 	right += fmt.Sprintf(" %s %s", dot, strings.Join(selectKeys, wideDot))
 
 	left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.table.Rows()), dot, humanize.Bytes(uint64(m.selectsize)))
+
+	if m.mode == modes.Listing {
+		title := "Showing"
+		if m.filter != "" || m.filtering {
+			title += " (filtered)"
+		}
+		right = fmt.Sprintf(" %s %d files in trash", title, len(m.table.Rows()))
+		left = ""
+	}
+
+	if m.filtering {
+		right = fmt.Sprintf(" Filtering %s %s", dot, strings.Join(filterKeys, wideDot))
+	}
 
 	// offset of 2 again because of table border
 	spacerWidth = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - poffset
@@ -447,8 +516,8 @@ func (m *model) selectAll() {
 	m.selected = map[string]bool{}
 	m.selectsize = 0
 	for i := range m.table.Rows() {
-		m.selected[m.files[i].String()] = true
-		m.selectsize += m.files[i].Filesize()
+		m.selected[m.fltrfiles[i].String()] = true
+		m.selectsize += m.fltrfiles[i].Filesize()
 	}
 	m.updateRows(true)
 }
@@ -501,8 +570,13 @@ func (m *model) invertSelection() {
 
 func (m *model) sort() {
 	slices.SortStableFunc(m.files, m.sorting.Sorter())
+	m.applyFilter()
+}
+
+func (m *model) applyFilter() {
+	m.fltrfiles = m.filteredFiles()
 	var rows = []table.Row{}
-	for _, file := range m.files {
+	for _, file := range m.fltrfiles {
 		r := newRow(file, m.workdir)
 		if !m.readonly {
 			r = append(r, getCheck(m.selected[file.String()]))
@@ -511,6 +585,29 @@ func (m *model) sort() {
 	}
 
 	m.table.SetRows(rows)
+	m.updateTableHeight()
+}
+
+func (m *model) filteredFiles() (filteredFiles files.Files) {
+	for _, file := range m.files {
+		if fuzzy.Match(m.filter, file.Name()) {
+			filteredFiles = append(filteredFiles, file)
+		} else {
+			if _, ok := m.selected[file.String()]; ok {
+				delete(m.selected, file.String())
+				m.selectsize -= file.Filesize()
+			}
+		}
+	}
+	return
+}
+
+func (m *model) updateTableHeight() {
+	h := min(m.termheight-hoffset, len(m.table.Rows()))
+	m.table.SetHeight(h)
+	if m.table.Cursor() >= h {
+		m.table.SetCursor(h - 1)
+	}
 }
 
 func Select(fls files.Files, width, height int, readonly, once bool, workdir string, mode modes.Mode) (files.Files, modes.Mode, error) {

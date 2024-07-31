@@ -11,6 +11,7 @@ require (
 	github.com/charmbracelet/log v0.4.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ijt/go-anytime v1.9.2
+	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/urfave/cli/v2 v2.27.3
 	gitlab.com/tymonx/go-formatter v1.5.1
 	golang.org/x/term v0.22.0

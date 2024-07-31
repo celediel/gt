@@ -28,12 +28,18 @@ const (
 	hoffset int    = 6
 	poffset int    = 2
 
+	filenameColumn string = "filename"
+	pathColumn     string = "path"
+	modifiedColumn string = "modified"
+	trashedColumn  string = "trashed"
+	sizeColumn     string = "size"
+
 	// TODO: figure these out dynamically based on longest of each
-	filenameColumn float64 = 0.46
-	pathColumn     float64 = 0.25
-	dateColumn     float64 = 0.15
-	sizeColumn     float64 = 0.12
-	checkColumn    float64 = 0.02
+	filenameColumnW float64 = 0.46
+	pathColumnW     float64 = 0.25
+	dateColumnW     float64 = 0.15
+	sizeColumnW     float64 = 0.12
+	checkColumnW    float64 = 0.02
 
 	// TODO: make these configurable or something
 	borderbg    string = "5"
@@ -75,11 +81,11 @@ type model struct {
 
 func newModel(fls []files.File, width, height int, readonly, once bool, workdir string, mode modes.Mode) model {
 	var (
-		fwidth  = int(math.Round(float64(width-woffset) * filenameColumn))
-		owidth  = int(math.Round(float64(width-woffset) * pathColumn))
-		dwidth  = int(math.Round(float64(width-woffset) * dateColumn))
-		swidth  = int(math.Round(float64(width-woffset) * sizeColumn))
-		cwidth  = int(math.Round(float64(width-woffset) * checkColumn))
+		fwidth  = int(math.Round(float64(width-woffset) * filenameColumnW))
+		owidth  = int(math.Round(float64(width-woffset) * pathColumnW))
+		dwidth  = int(math.Round(float64(width-woffset) * dateColumnW))
+		swidth  = int(math.Round(float64(width-woffset) * sizeColumnW))
+		cwidth  = int(math.Round(float64(width-woffset) * checkColumnW))
 		theight = min(height-hoffset, len(fls))
 
 		mdl = model{
@@ -104,16 +110,16 @@ func newModel(fls []files.File, width, height int, readonly, once bool, workdir 
 	var datecolumn string
 	switch mdl.mode {
 	case modes.Trashing:
-		datecolumn = "modified"
+		datecolumn = modifiedColumn
 	default:
-		datecolumn = "trashed"
+		datecolumn = trashedColumn
 	}
 
 	columns := []table.Column{
-		{Title: "filename", Width: fwidth},
-		{Title: "path", Width: owidth},
+		{Title: filenameColumn, Width: fwidth},
+		{Title: pathColumn, Width: owidth},
 		{Title: datecolumn, Width: dwidth},
-		{Title: "size", Width: swidth},
+		{Title: sizeColumn, Width: swidth},
 	}
 	if !mdl.readonly {
 		columns = append(columns, table.Column{Title: uncheck, Width: cwidth})

@@ -23,7 +23,7 @@ Find files on the filesystem based on the filter flags and any filename args.
 *--recursive*, *-r*
 operate on files recursively
 
-*--work-dir* dir, *-w* dir
+*--work-dir* **dir**, *-w* **dir**
 operate on files in this directory
 
 *--hidden*, *-h*
@@ -38,7 +38,7 @@ Find files in the trash based on the filter flags and any filename args.
 *--non-interactive*, *-n*
 list files and quit
 
-*--original-path* dir, *-O* dir
+*--original-path* **dir**, *-O* **dir**
 list files trashed from this directory
 
 ### restore / re
@@ -50,8 +50,8 @@ Find files in the trash based on the filter flags and any filename args.
 *--all*, *-a*
 restore all files in trash
 
-*--original-path* dir, *-O* dir
-restore files trashed from this directory
+*--original-path* **dir**, *-O* **dir**
+*restore* files trashed from this directory
 
 ### clean / cl
 
@@ -62,7 +62,7 @@ Find files in the trash based on the filter flags and any filename args.
 *--all*, *-a*
 clean all files in trash
 
-*--original-path* dir, *-O* dir
+*--original-path* **dir**, *-O* **dir**
 remove files trashed from this directory
 
 ## Flags
@@ -72,30 +72,30 @@ remove files trashed from this directory
 *--confirm*, *-c*
 ask for confirmation before executing any action
 
-*--log* level, *-l* level
+*--log* **level**, *-l* **level**
 set log level
 
 ### Filter flags (usable with all commands)
 
-*--match* pattern, *-m* pattern
+*--match* **pattern**, *-m* **pattern**
 operate on files matching regex pattern
 
-*--glob* pattern, *-m* pattern
+*--glob* **pattern**, *-m* **pattern**
 operate on files matching glob
 
-*--not-match* pattern, *-M* pattern
+*--not-match* **pattern**, *-M* **pattern**
 operate on files not matching regex pattern
 
-*--not-glob* pattern, *-G* pattern
+*--not-glob* **pattern**, *-G* **pattern**
 operate on files not matching glob
 
-*--on* date, *-O* date
+*--on* **date**, *-O* **date**
 operate on files modified on date
 
-*--before* date, *-B* date
+*--before* **date**, *-B* **date**
 operate on files modified before date
 
-*--after* date, *-A* date
+*--after* **date**, *-A* **date**
 operate on files modified after date
 
 *--files-only*, *-F*
@@ -104,13 +104,13 @@ operate on files only
 *--dirs-only*, *-D*
 operate on directories only
 
-*--min-size* size, *-N* size
+*--min-size* **size**, *-N* **size**
 operate on files larger than size
 
-*--max-size* size, *-X* size
+*--max-size* **size**, *-X* **size**
 operate on files smaller than size
 
-*--mode* mode, *-x* mode
+*--mode* **mode**, *-x* **mode**
 operate on files matching mode mode
 
 See also gt(1) or `gt --help`.

@@ -72,12 +72,12 @@ func FindInAllTrashes(ogdir string, fltr *filter.Filter) (Files, error) {
 
 	personalTrash := filepath.Join(xdg.DataHome, "Trash")
 
-	if fls, err := FindTrash(personalTrash, ogdir, fltr); err == nil {
+	if fls, err := findTrash(personalTrash, ogdir, fltr); err == nil {
 		files = append(files, fls...)
 	}
 
 	for _, trash := range getAllTrashes() {
-		fls, err := FindTrash(trash, ogdir, fltr)
+		fls, err := findTrash(trash, ogdir, fltr)
 		if err != nil {
 			continue
 		}
@@ -87,7 +87,56 @@ func FindInAllTrashes(ogdir string, fltr *filter.Filter) (Files, error) {
 	return files, nil
 }
 
-func FindTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
+func ConfirmRestore(confirm bool, fs Files) error {
+	if !confirm || prompt.YesNo(fmt.Sprintf("restore %d selected files?", len(fs))) {
+		log.Info("doing the thing")
+		restored, err := restore(fs)
+		if err != nil {
+			return fmt.Errorf("restored %d files before error %w", restored, err)
+		}
+		fmt.Fprintf(os.Stdout, "restored %d files\n", restored)
+	} else {
+		fmt.Fprintf(os.Stdout, "not doing anything\n")
+	}
+	return nil
+}
+
+func ConfirmClean(confirm bool, fs Files) error {
+	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(fs))) &&
+		(!confirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(fs)))) {
+		removed, err := remove(fs)
+		if err != nil {
+			return fmt.Errorf("removed %d files before error %w", removed, err)
+		}
+		fmt.Fprintf(os.Stdout, "removed %d files\n", removed)
+	} else {
+		fmt.Fprintf(os.Stdout, "not doing anything\n")
+	}
+	return nil
+}
+
+func ConfirmTrash(confirm bool, fs Files) error {
+	if !confirm || prompt.YesNo(fmt.Sprintf("trash %d selected files?", len(fs))) {
+		tfs := make([]string, 0, len(fs))
+		for _, file := range fs {
+			tfs = append(tfs, file.Path())
+		}
+
+		trashed := trashFiles(tfs)
+
+		var s string
+		if trashed > 1 {
+			s = "s"
+		}
+		fmt.Fprintf(os.Stdout, "trashed %d file%s\n", trashed, s)
+	} else {
+		fmt.Fprintf(os.Stdout, "not doing anything\n")
+		return nil
+	}
+	return nil
+}
+
+func findTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
 	log.Debugf("searching for trashinfo files in %s", trashdir)
 	var files Files
 
@@ -150,7 +199,45 @@ func FindTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
 	return files, nil
 }
 
-func Restore(files Files) (restored int, err error) {
+func trashFile(filename string) error {
+	trashDir, err := getTrashDir(filename)
+	if err != nil {
+		return err
+	}
+
+	trashInfoFilename, outPath := getTrashFilenames(filepath.Base(filename), trashDir)
+
+	if err := os.Rename(filename, outPath); err != nil {
+		return err
+	}
+
+	trashInfo, err := formatter.Format(trashInfoTemplate, formatter.Named{
+		"path": filename,
+		"date": time.Now().Format(trashInfoDateFmt),
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(trashInfoFilename, []byte(trashInfo), noExecuteUserPerm); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func trashFiles(files []string) (trashed int) {
+	for _, file := range files {
+		if err := trashFile(file); err != nil {
+			log.Errorf("cannot trash '%s': %s", file, err)
+			continue
+		}
+		trashed++
+	}
+	return
+}
+
+func restore(files Files) (restored int, err error) {
 	for _, maybeFile := range files {
 		file, ok := maybeFile.(TrashInfo)
 		if !ok {
@@ -188,21 +275,7 @@ func Restore(files Files) (restored int, err error) {
 	return restored, err
 }
 
-func ConfirmRestore(confirm bool, fs Files) error {
-	if !confirm || prompt.YesNo(fmt.Sprintf("restore %d selected files?", len(fs))) {
-		log.Info("doing the thing")
-		restored, err := Restore(fs)
-		if err != nil {
-			return fmt.Errorf("restored %d files before error %w", restored, err)
-		}
-		fmt.Fprintf(os.Stdout, "restored %d files\n", restored)
-	} else {
-		fmt.Fprintf(os.Stdout, "not doing anything\n")
-	}
-	return nil
-}
-
-func Remove(files Files) (removed int, err error) {
+func remove(files Files) (removed int, err error) {
 	for _, maybeFile := range files {
 		file, ok := maybeFile.(TrashInfo)
 		if !ok {
@@ -225,79 +298,6 @@ func Remove(files Files) (removed int, err error) {
 		removed++
 	}
 	return removed, err
-}
-
-func ConfirmClean(confirm bool, fs Files) error {
-	if prompt.YesNo(fmt.Sprintf("remove %d selected files permanently from the trash?", len(fs))) &&
-		(!confirm || prompt.YesNo(fmt.Sprintf("really remove all these %d selected files permanently from the trash forever??", len(fs)))) {
-		removed, err := Remove(fs)
-		if err != nil {
-			return fmt.Errorf("removed %d files before error %w", removed, err)
-		}
-		fmt.Fprintf(os.Stdout, "removed %d files\n", removed)
-	} else {
-		fmt.Fprintf(os.Stdout, "not doing anything\n")
-	}
-	return nil
-}
-
-func TrashFile(filename string) error {
-	trashDir, err := getTrashDir(filename)
-	if err != nil {
-		return err
-	}
-
-	trashInfoFilename, outPath := getTrashFilenames(filepath.Base(filename), trashDir)
-
-	if err := os.Rename(filename, outPath); err != nil {
-		return err
-	}
-
-	trashInfo, err := formatter.Format(trashInfoTemplate, formatter.Named{
-		"path": filename,
-		"date": time.Now().Format(trashInfoDateFmt),
-	})
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(trashInfoFilename, []byte(trashInfo), noExecuteUserPerm); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func TrashFiles(files []string) (trashed int) {
-	for _, file := range files {
-		if err := TrashFile(file); err != nil {
-			log.Errorf("cannot trash '%s': %s", file, err)
-			continue
-		}
-		trashed++
-	}
-	return
-}
-
-func ConfirmTrash(confirm bool, fs Files) error {
-	if !confirm || prompt.YesNo(fmt.Sprintf("trash %d selected files?", len(fs))) {
-		tfs := make([]string, 0, len(fs))
-		for _, file := range fs {
-			tfs = append(tfs, file.Path())
-		}
-
-		trashed := TrashFiles(tfs)
-
-		var s string
-		if trashed > 1 {
-			s = "s"
-		}
-		fmt.Fprintf(os.Stdout, "trashed %d file%s\n", trashed, s)
-	} else {
-		fmt.Fprintf(os.Stdout, "not doing anything\n")
-		return nil
-	}
-	return nil
 }
 
 func randomString(length int) string {

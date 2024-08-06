@@ -86,8 +86,8 @@ type model struct {
 	fltrfiles  files.Files
 }
 
-func newModel(fls []files.File, selectall, readonly, once bool, workdir string, mode modes.Mode) (m model) {
-	m = model{
+func newModel(fls []files.File, selectall, readonly, once bool, workdir string, mode modes.Mode) model {
+	m := model{
 		keys:       defaultKeyMap(),
 		readonly:   readonly,
 		once:       once,
@@ -116,7 +116,7 @@ func newModel(fls []files.File, selectall, readonly, once bool, workdir string, 
 		m.selectAll()
 	}
 
-	return
+	return m
 }
 
 type keyMap struct {

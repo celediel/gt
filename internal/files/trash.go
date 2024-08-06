@@ -5,7 +5,9 @@ import (
 	"io/fs"
 	"math/rand"
 	"os"
+	"os/user"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,16 +15,20 @@ import (
 	"git.burning.moe/celediel/gt/internal/filter"
 	"git.burning.moe/celediel/gt/internal/prompt"
 
+	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
 	"github.com/dustin/go-humanize"
+	"github.com/moby/sys/mountinfo"
 	"gitlab.com/tymonx/go-formatter/formatter"
 	"gopkg.in/ini.v1"
 )
 
 const (
+	sep                      = string(os.PathSeparator)
 	executePerm              = fs.FileMode(0755)
 	noExecuteUserPerm        = fs.FileMode(0600)
 	randomStrLength   int    = 8
+	trashName         string = ".Trash"
 	trashInfoExt      string = ".trashinfo"
 	trashInfoSec      string = "Trash Info"
 	trashInfoPath     string = "Path"
@@ -59,6 +65,26 @@ func (t TrashInfo) Filesize() int64 {
 
 func (t TrashInfo) String() string {
 	return t.name + t.path + t.ogpath + t.trashinfo
+}
+
+func FindInAllTrashes(ogdir string, fltr *filter.Filter) (Files, error) {
+	var files Files
+
+	personalTrash := filepath.Join(xdg.DataHome, "Trash")
+
+	if fls, err := FindTrash(personalTrash, ogdir, fltr); err == nil {
+		files = append(files, fls...)
+	}
+
+	for _, trash := range getAllTrashes() {
+		fls, err := FindTrash(trash, ogdir, fltr)
+		if err != nil {
+			continue
+		}
+		files = append(files, fls...)
+	}
+
+	return files, nil
 }
 
 func FindTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
@@ -215,60 +241,58 @@ func ConfirmClean(confirm bool, fs Files) error {
 	return nil
 }
 
-func TrashFile(trashDir, name string) error {
-	trashinfoFilename, outPath := ensureUniqueName(filepath.Base(name), trashDir)
+func TrashFile(filename string) error {
+	trashDir, err := getTrashDir(filename)
+	if err != nil {
+		return err
+	}
 
-	if err := os.Rename(name, outPath); err != nil {
-		if strings.Contains(err.Error(), "invalid cross-device link") {
-			// TODO: use $topdir/.Trash as per XDG spec
-			// TODO: maybe figure out if filesystem is truly different or is a btrfs subvolume
-			return err
-		}
+	trashInfoFilename, outPath := getTrashFilenames(filepath.Base(filename), trashDir)
+
+	if err := os.Rename(filename, outPath); err != nil {
 		return err
 	}
 
 	trashInfo, err := formatter.Format(trashInfoTemplate, formatter.Named{
-		"path": name,
+		"path": filename,
 		"date": time.Now().Format(trashInfoDateFmt),
 	})
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(trashinfoFilename, []byte(trashInfo), noExecuteUserPerm); err != nil {
+	if err := os.WriteFile(trashInfoFilename, []byte(trashInfo), noExecuteUserPerm); err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func TrashFiles(trashDir string, files ...string) (trashed int) {
+func TrashFiles(files []string) (trashed int) {
 	for _, file := range files {
-		if err := TrashFile(trashDir, file); err != nil {
+		if err := TrashFile(file); err != nil {
 			log.Errorf("cannot trash '%s': %s", file, err)
 			continue
 		}
 		trashed++
 	}
-	return trashed
+	return
 }
 
-func ConfirmTrash(confirm bool, fs Files, trashDir string) error {
+func ConfirmTrash(confirm bool, fs Files) error {
 	if !confirm || prompt.YesNo(fmt.Sprintf("trash %d selected files?", len(fs))) {
 		tfs := make([]string, 0, len(fs))
 		for _, file := range fs {
-			log.Debugf("gonna trash %s", file.Path())
 			tfs = append(tfs, file.Path())
 		}
 
-		trashed := TrashFiles(trashDir, tfs...)
+		trashed := TrashFiles(tfs)
 
-		var files string
-		if trashed == 1 {
-			files = "file"
-		} else {
-			files = "files"
+		var s string
+		if trashed > 1 {
+			s = "s"
 		}
-		fmt.Fprintf(os.Stdout, "trashed %d %s\n", trashed, files)
+		fmt.Fprintf(os.Stdout, "trashed %d file%s\n", trashed, s)
 	} else {
 		fmt.Fprintf(os.Stdout, "not doing anything\n")
 		return nil
@@ -276,7 +300,7 @@ func ConfirmTrash(confirm bool, fs Files, trashDir string) error {
 	return nil
 }
 
-func randomFilename(length int) string {
+func randomString(length int) string {
 	out := strings.Builder{}
 	for range length {
 		out.WriteByte(randomChar())
@@ -289,7 +313,7 @@ func randomChar() byte {
 	return chars[rand.Intn(len(chars))]
 }
 
-func ensureUniqueName(filename, trashDir string) (string, string) {
+func getTrashFilenames(filename, trashDir string) (string, string) {
 	var (
 		filedir = filepath.Join(trashDir, "files")
 		infodir = filepath.Join(trashDir, "info")
@@ -307,12 +331,102 @@ func ensureUniqueName(filename, trashDir string) (string, string) {
 	var tries int
 	for {
 		tries++
-		rando := randomFilename(randomStrLength)
-		newName := filepath.Join(infodir, filename+rando+trashInfoExt)
-		if _, err := os.Stat(newName); os.IsNotExist(err) {
+		rando := randomString(randomStrLength)
+		newInfo := filepath.Join(infodir, filename+rando+trashInfoExt)
+		newFile := filepath.Join(filedir, filename+rando)
+		_, infoErr := os.Stat(newInfo)
+		_, fileErr := os.Stat(newFile)
+		if os.IsNotExist(infoErr) && os.IsNotExist(fileErr) {
 			path := filepath.Join(filedir, filename+rando)
 			log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
-			return newName, path
+			return newInfo, path
 		}
 	}
+}
+
+func getTrashDir(filename string) (string, error) {
+	root, err := getRoot(filename)
+	if err != nil {
+		return "", err
+	}
+
+	var trashDir string
+	if strings.Contains(filename, xdg.Home) {
+		trashDir = filepath.Join(xdg.DataHome, trashName[1:])
+	} else {
+		trashDir = filepath.Clean(root + sep + trashName)
+	}
+
+	if _, err := os.Lstat(trashDir); err != nil {
+		usr, _ := user.Current()
+		trashDir += "-" + usr.Uid
+		if err := os.Mkdir(trashDir, executePerm); err != nil {
+			return "", fmt.Errorf("%s%s does not exist and creation of %s failed", root, trashName, trashDir)
+		}
+	}
+
+	if link, err := os.Readlink(trashDir); err == nil && link != "" {
+		return "", fmt.Errorf("trash dir %s is a symbolic link", trashDir)
+	}
+
+	return trashDir, nil
+}
+
+func getRoot(path string) (string, error) {
+	var roots []string
+
+	// populate a list of mountpoints on the system
+	_, err := mountinfo.GetMounts(func(i *mountinfo.Info) (skip bool, stop bool) {
+		roots = append(roots, i.Mountpoint)
+		return false, false
+	})
+	if err != nil {
+		log.Error(err)
+	}
+
+	var depth uint8 = 1 // 255 seems a reasonable recursion maximum
+	current := path
+
+	// recursively search upwards by using filepath.Clean and ..
+	for {
+		if depth == 0 {
+			return path, fmt.Errorf("reached max depth getting root of %s", path)
+		}
+
+		current = filepath.Clean(current)
+
+		if current == string(os.PathSeparator) || slices.Contains(roots, current) {
+			return current, nil
+		}
+
+		current += string(os.PathSeparator) + ".."
+		depth++
+	}
+}
+
+func getAllTrashes() []string {
+	var trashes []string
+	usr, _ := user.Current()
+
+	_, err := mountinfo.GetMounts(func(mount *mountinfo.Info) (skip bool, stop bool) {
+		point := mount.Mountpoint
+		trashDir := filepath.Clean(point + sep + trashName)
+		userTrashDir := trashDir + "-" + usr.Uid
+
+		if _, err := os.Lstat(trashDir); err == nil {
+			trashes = append(trashes, trashDir)
+		}
+
+		if _, err := os.Lstat(userTrashDir); err == nil {
+			trashes = append(trashes, userTrashDir)
+		}
+
+		return false, false
+	})
+
+	if err != nil {
+		return []string{}
+	}
+
+	return trashes
 }

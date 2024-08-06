@@ -34,8 +34,8 @@ See gt(1) for more information.`
 )
 
 var (
-	loglvl                     string
 	fltr                       *filter.Filter
+	loglvl                     string
 	onArg, beforeArg, afterArg string
 	globArg, patternArg        string
 	unGlobArg, unPatternArg    string
@@ -45,8 +45,6 @@ var (
 	askconfirm, all            bool
 	workdir, ogdir             cli.Path
 	recursive                  bool
-
-	trashDir = filepath.Join(xdg.DataHome, "Trash")
 
 	beforeAll = func(_ *cli.Context) error {
 		// setup log
@@ -62,19 +60,15 @@ var (
 			log.Errorf("unknown log level '%s' (possible values: debug, info, warn, error, fatal, default: warn)", loglvl)
 		}
 
-		// ensure trash directories exist
-		if _, e := os.Stat(trashDir); os.IsNotExist(e) {
-			if err := os.Mkdir(trashDir, executePerm); err != nil {
+		// ensure personal trash directories exist
+		homeTrash := filepath.Join(xdg.DataHome, "Trash")
+		if _, e := os.Stat(filepath.Join(homeTrash, "info")); os.IsNotExist(e) {
+			if err := os.MkdirAll(filepath.Join(homeTrash, "info"), executePerm); err != nil {
 				return err
 			}
 		}
-		if _, e := os.Stat(filepath.Join(trashDir, "info")); os.IsNotExist(e) {
-			if err := os.Mkdir(filepath.Join(trashDir, "info"), executePerm); err != nil {
-				return err
-			}
-		}
-		if _, e := os.Stat(filepath.Join(trashDir, "files")); os.IsNotExist(e) {
-			if err := os.Mkdir(filepath.Join(trashDir, "files"), executePerm); err != nil {
+		if _, e := os.Stat(filepath.Join(homeTrash, "files")); os.IsNotExist(e) {
+			if err := os.MkdirAll(filepath.Join(homeTrash, "files"), executePerm); err != nil {
 				return err
 			}
 		}
@@ -107,7 +101,8 @@ var (
 				mode     modes.Mode
 				err      error
 			)
-			infiles, err = files.FindTrash(trashDir, ogdir, fltr)
+
+			infiles, err = files.FindInAllTrashes(ogdir, fltr)
 			if err != nil {
 				return err
 			}
@@ -158,7 +153,7 @@ var (
 			}
 			filesToTrash = append(filesToTrash, file)
 		}
-		return files.ConfirmTrash(askconfirm, filesToTrash, trashDir)
+		return files.ConfirmTrash(askconfirm, filesToTrash)
 	}
 
 	beforeCommands = func(ctx *cli.Context) (err error) {
@@ -231,7 +226,7 @@ var (
 				return nil
 			}
 
-			return files.ConfirmTrash(askconfirm, selected, trashDir)
+			return files.ConfirmTrash(askconfirm, selected)
 		},
 	}
 
@@ -242,9 +237,7 @@ var (
 		Flags:   slices.Concat(listFlags, trashedFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(_ *cli.Context) error {
-			log.Debugf("searching in directory %s for files", trashDir)
-
-			fls, err := files.FindTrash(trashDir, ogdir, fltr)
+			fls, err := files.FindInAllTrashes(ogdir, fltr)
 
 			var msg string
 			log.Debugf("filter '%s' is blank? %t in %s", fltr, fltr.Blank(), ogdir)
@@ -273,9 +266,7 @@ var (
 		Flags:     slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
 		Before:    beforeCommands,
 		Action: func(_ *cli.Context) error {
-			log.Debugf("searching in directory %s for files", trashDir)
-
-			fls, err := files.FindTrash(trashDir, ogdir, fltr)
+			fls, err := files.FindInAllTrashes(ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, "no files to restore")
 				return nil
@@ -304,7 +295,7 @@ var (
 		Flags:     slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
 		Before:    beforeCommands,
 		Action: func(_ *cli.Context) error {
-			fls, err := files.FindTrash(trashDir, ogdir, fltr)
+			fls, err := files.FindInAllTrashes(ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, "no files to clean")
 				return nil

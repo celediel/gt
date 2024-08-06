@@ -62,42 +62,49 @@ func (t TrashInfo) String() string {
 }
 
 func FindTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
+	log.Debugf("searching for trashinfo files in %s", trashdir)
 	var files Files
-	outerr := filepath.WalkDir(trashdir, func(path string, dirEntry fs.DirEntry, err error) error {
-		if err != nil {
-			log.Debugf("what happened?? what is %s?", err)
-			return err
+
+	infodir := filepath.Join(trashdir, "info")
+	dirs, err := os.ReadDir(infodir)
+	if err != nil {
+		return Files{}, err
+	}
+
+	for _, dir := range dirs {
+		if dir.IsDir() || filepath.Ext(dir.Name()) != trashInfoExt {
+			continue
 		}
 
-		// ignore self, directories, and non trashinfo files
-		if path == trashdir || dirEntry.IsDir() || filepath.Ext(path) != trashInfoExt {
-			return nil
-		}
+		path := filepath.Join(infodir, dir.Name())
 
 		// trashinfo is just an ini file, so
-		c, err := ini.Load(path)
+		trashInfo, err := ini.Load(path)
 		if err != nil {
-			return err
+			log.Errorf("error reading %s: %s", path, err)
+			continue
 		}
-		if section := c.Section(trashInfoSec); section != nil {
+
+		if section := trashInfo.Section(trashInfoSec); section != nil {
 			basepath := section.Key(trashInfoPath).String()
 
 			filename := filepath.Base(basepath)
 			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trashInfoExt, "", 1)
 			info, err := os.Lstat(trashedpath)
 			if err != nil {
-				log.Errorf("error reading %s: %s", trashedpath, err)
-				return nil
+				log.Errorf("error reading '%s': %s", trashedpath, err)
+				continue
 			}
 
 			s := section.Key(trashInfoDate).Value()
 			date, err := time.ParseInLocation(trashInfoDateFmt, s, time.Local)
 			if err != nil {
-				return err
+				log.Errorf("error parsing date '%s' in trashinfo file '%s': %s", s, path, err)
+				continue
 			}
 
 			if ogdir != "" && filepath.Dir(basepath) != ogdir {
-				return nil
+				continue
 			}
 
 			if fltr.Match(info) {
@@ -112,11 +119,8 @@ func FindTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
 				})
 			}
 		}
-		return nil
-	})
-	if outerr != nil {
-		return Files{}, outerr
 	}
+
 	return files, nil
 }
 

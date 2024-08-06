@@ -67,7 +67,7 @@ func NewDisk(path string) (DiskFile, error) {
 	}, nil
 }
 
-func FindDisk(dir string, recursive bool, fltr *filter.Filter) (Files, error) {
+func FindDisk(dir string, recursive bool, fltr *filter.Filter) Files {
 	var files Files
 	dir = filepath.Clean(dir)
 	if dir == "." || dir == "" {
@@ -91,7 +91,7 @@ func FindDisk(dir string, recursive bool, fltr *filter.Filter) (Files, error) {
 		files = append(files, readDir(dir, fltr)...)
 	}
 
-	return files, nil
+	return files
 }
 
 // isInHiddenDir checks `path` and parent directories
@@ -143,7 +143,7 @@ func walkDir(dir string, fltr *filter.Filter) Files {
 	})
 	if err != nil {
 		log.Errorf("error walking directory %s: %s", dir, err)
-		return Files{}
+		return nil
 	}
 	return files
 }
@@ -152,7 +152,7 @@ func readDir(dir string, fltr *filter.Filter) Files {
 	var files Files
 	fs, err := os.ReadDir(dir)
 	if err != nil {
-		return Files{}
+		return nil
 	}
 	for _, file := range fs {
 		name := file.Name()
@@ -163,7 +163,7 @@ func readDir(dir string, fltr *filter.Filter) Files {
 
 		info, err := file.Info()
 		if err != nil {
-			return Files{}
+			return nil
 		}
 
 		path := filepath.Dir(filepath.Join(dir, name))

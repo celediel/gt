@@ -86,7 +86,7 @@ type model struct {
 	fltrfiles  files.Files
 }
 
-func newModel(fls []files.File, selectall, readonly, once bool, workdir string, mode modes.Mode) model {
+func newModel(fls files.Files, selectall, readonly, once bool, workdir string, mode modes.Mode) model {
 	m := model{
 		keys:       defaultKeyMap(),
 		readonly:   readonly,

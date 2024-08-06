@@ -67,7 +67,7 @@ func (t TrashInfo) String() string {
 	return t.name + t.path + t.ogpath + t.trashinfo
 }
 
-func FindInAllTrashes(ogdir string, fltr *filter.Filter) (Files, error) {
+func FindInAllTrashes(ogdir string, fltr *filter.Filter) Files {
 	var files Files
 
 	personalTrash := filepath.Join(xdg.DataHome, "Trash")
@@ -79,12 +79,13 @@ func FindInAllTrashes(ogdir string, fltr *filter.Filter) (Files, error) {
 	for _, trash := range getAllTrashes() {
 		fls, err := findTrash(trash, ogdir, fltr)
 		if err != nil {
+			log.Errorf("error reading trash dir '%s': %s", trash, err)
 			continue
 		}
 		files = append(files, fls...)
 	}
 
-	return files, nil
+	return files
 }
 
 func ConfirmRestore(confirm bool, fs Files) error {
@@ -143,7 +144,7 @@ func findTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
 	infodir := filepath.Join(trashdir, "info")
 	dirs, err := os.ReadDir(infodir)
 	if err != nil {
-		return Files{}, err
+		return nil, err
 	}
 
 	for _, dir := range dirs {
@@ -425,7 +426,8 @@ func getAllTrashes() []string {
 	})
 
 	if err != nil {
-		return []string{}
+		log.Errorf("error reading mounts: %s", err)
+		return nil
 	}
 
 	return trashes

@@ -102,10 +102,7 @@ var (
 				err      error
 			)
 
-			infiles, err = files.FindInAllTrashes(ogdir, fltr)
-			if err != nil {
-				return err
-			}
+			infiles = files.FindInAllTrashes(ogdir, fltr)
 			if len(infiles) <= 0 {
 				var msg string
 				if fltr.Blank() {
@@ -206,10 +203,7 @@ var (
 
 			// if none of the args were files, then find files based on filter
 			if len(filesToTrash) == 0 {
-				fls, err := files.FindDisk(workdir, recursive, fltr)
-				if err != nil {
-					return err
-				}
+				fls := files.FindDisk(workdir, recursive, fltr)
 				if len(fls) == 0 {
 					fmt.Fprintln(os.Stdout, "no files to trash")
 					return nil
@@ -237,7 +231,7 @@ var (
 		Flags:   slices.Concat(listFlags, trashedFlags, filterFlags),
 		Before:  beforeCommands,
 		Action: func(_ *cli.Context) error {
-			fls, err := files.FindInAllTrashes(ogdir, fltr)
+			fls := files.FindInAllTrashes(ogdir, fltr)
 
 			var msg string
 			log.Debugf("filter '%s' is blank? %t in %s", fltr, fltr.Blank(), ogdir)
@@ -250,8 +244,6 @@ var (
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, msg)
 				return nil
-			} else if err != nil {
-				return err
 			}
 
 			return interactive.Show(fls, noInterArg, workdir)
@@ -266,12 +258,10 @@ var (
 		Flags:     slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
 		Before:    beforeCommands,
 		Action: func(_ *cli.Context) error {
-			fls, err := files.FindInAllTrashes(ogdir, fltr)
+			fls := files.FindInAllTrashes(ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, "no files to restore")
 				return nil
-			} else if err != nil {
-				return err
 			}
 
 			selected, _, err := interactive.Select(fls, all, all, workdir, modes.Restoring)
@@ -295,12 +285,10 @@ var (
 		Flags:     slices.Concat(cleanRestoreFlags, trashedFlags, filterFlags),
 		Before:    beforeCommands,
 		Action: func(_ *cli.Context) error {
-			fls, err := files.FindInAllTrashes(ogdir, fltr)
+			fls := files.FindInAllTrashes(ogdir, fltr)
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, "no files to clean")
 				return nil
-			} else if err != nil {
-				return err
 			}
 
 			selected, _, err := interactive.Select(fls, all, all, workdir, modes.Cleaning)

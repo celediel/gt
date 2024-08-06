@@ -20,7 +20,7 @@ var (
 	pwd, _ = os.Getwd()
 )
 
-// UnExpand returns dir after expanding some directory shortcuts
+// UnExpand returns dir after unexpanding some directory shortcuts
 //
 //	$HOME -> ~
 //
@@ -64,13 +64,11 @@ func PercentEncode(input string) (output string) {
 	return
 }
 
-func cleanDir(dir, pwd string) (out string) {
+func cleanDir(dir, pwd string) string {
 	if strings.HasPrefix(dir, ".") {
-		out = filepath.Clean(dir)
+		return filepath.Clean(dir)
 	} else if !strings.HasPrefix(dir, sep) {
-		out = filepath.Join(pwd, dir)
-	} else {
-		out = dir
+		return filepath.Join(pwd, dir)
 	}
-	return
+	return dir
 }

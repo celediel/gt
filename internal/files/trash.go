@@ -245,7 +245,7 @@ func restore(files Files) (restored int, err error) {
 		}
 
 		var cancel bool
-		outpath := dirs.UnEscape(file.ogpath)
+		outpath := dirs.PercentDecode(file.ogpath)
 		log.Infof("restoring %s back to %s\n", file.name, outpath)
 		if _, e := os.Lstat(outpath); e == nil {
 			outpath, cancel = prompt.NewPath(outpath)
@@ -323,7 +323,7 @@ func getTrashFilenames(filename, trashDir string) (string, string) {
 	if _, err := os.Stat(info); os.IsNotExist(err) {
 		// doesn't exist, so use it
 		path := filepath.Join(filedir, filename)
-		return info, path
+		return dirs.PercentEncode(info), dirs.PercentEncode(path)
 	}
 
 	// otherwise, try random suffixes until one works
@@ -339,7 +339,7 @@ func getTrashFilenames(filename, trashDir string) (string, string) {
 		if os.IsNotExist(infoErr) && os.IsNotExist(fileErr) {
 			path := filepath.Join(filedir, filename+rando)
 			log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))
-			return newInfo, path
+			return dirs.PercentEncode(newInfo), dirs.PercentEncode(path)
 		}
 	}
 }

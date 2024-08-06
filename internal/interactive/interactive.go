@@ -669,7 +669,7 @@ func newRow(file files.File, workdir string) table.Row {
 		size = humanize.Bytes(uint64(file.Filesize()))
 	}
 	return table.Row{
-		dirs.UnEscape(file.Name()),
+		dirs.PercentDecode(file.Name()),
 		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
 		time,
 		size,

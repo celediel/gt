@@ -1,4 +1,4 @@
-// Package dirs provides functions sanitize directory names.
+// Package dirs provides functions to sanitize directory and file names.
 package dirs
 
 import (
@@ -7,7 +7,13 @@ import (
 	"strings"
 )
 
-const sep = string(os.PathSeparator)
+const (
+	sep      = string(os.PathSeparator)
+	space    = " "
+	spacep   = "%20"
+	newline  = "\n"
+	newlinep = "%0A"
+)
 
 var (
 	home   = os.Getenv("HOME")
@@ -35,7 +41,7 @@ func UnExpand(dir, workdir string) (outdir string) {
 
 	outdir = strings.Replace(outdir, home, "~", 1)
 
-	outdir = UnEscape(outdir)
+	outdir = PercentDecode(outdir)
 
 	if outdir == "" {
 		outdir = "/"
@@ -44,8 +50,18 @@ func UnExpand(dir, workdir string) (outdir string) {
 	return
 }
 
-func UnEscape(input string) string {
-	return strings.ReplaceAll(input, "%20", " ")
+func PercentDecode(input string) (output string) {
+	output = strings.ReplaceAll(input, spacep, space)
+	output = strings.ReplaceAll(output, newlinep, newline)
+
+	return
+}
+
+func PercentEncode(input string) (output string) {
+	output = strings.ReplaceAll(input, space, spacep)
+	output = strings.ReplaceAll(output, newline, newlinep)
+
+	return
 }
 
 func cleanDir(dir, pwd string) (out string) {

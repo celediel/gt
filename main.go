@@ -62,12 +62,12 @@ var (
 
 		// ensure personal trash directories exist
 		homeTrash := filepath.Join(xdg.DataHome, "Trash")
-		if _, e := os.Stat(filepath.Join(homeTrash, "info")); os.IsNotExist(e) {
+		if _, e := os.Lstat(filepath.Join(homeTrash, "info")); os.IsNotExist(e) {
 			if err := os.MkdirAll(filepath.Join(homeTrash, "info"), executePerm); err != nil {
 				return err
 			}
 		}
-		if _, e := os.Stat(filepath.Join(homeTrash, "files")); os.IsNotExist(e) {
+		if _, e := os.Lstat(filepath.Join(homeTrash, "files")); os.IsNotExist(e) {
 			if err := os.MkdirAll(filepath.Join(homeTrash, "files"), executePerm); err != nil {
 				return err
 			}

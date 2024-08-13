@@ -257,7 +257,7 @@ func restore(files Files) (restored int, err error) {
 		}
 
 		basedir := filepath.Dir(outpath)
-		if _, e := os.Stat(basedir); e != nil {
+		if _, e := os.Lstat(basedir); e != nil {
 			if err = os.MkdirAll(basedir, executePerm); err != nil {
 				return restored, err
 			}
@@ -321,7 +321,7 @@ func getTrashFilenames(filename, trashDir string) (string, string) {
 	)
 
 	info := filepath.Join(infodir, filename+trashInfoExt)
-	if _, err := os.Stat(info); os.IsNotExist(err) {
+	if _, err := os.Lstat(info); os.IsNotExist(err) {
 		// doesn't exist, so use it
 		path := filepath.Join(filedir, filename)
 		return dirs.PercentEncode(info), dirs.PercentEncode(path)
@@ -335,8 +335,8 @@ func getTrashFilenames(filename, trashDir string) (string, string) {
 		rando := randomString(randomStrLength)
 		newInfo := filepath.Join(infodir, filename+rando+trashInfoExt)
 		newFile := filepath.Join(filedir, filename+rando)
-		_, infoErr := os.Stat(newInfo)
-		_, fileErr := os.Stat(newFile)
+		_, infoErr := os.Lstat(newInfo)
+		_, fileErr := os.Lstat(newFile)
 		if os.IsNotExist(infoErr) && os.IsNotExist(fileErr) {
 			path := filepath.Join(filedir, filename+rando)
 			log.Debugf("settled on random name %s%s on the %s try", filename, rando, humanize.Ordinal(tries))

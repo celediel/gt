@@ -52,7 +52,7 @@ func NewPath(path string) (string, bool) {
 				Run(); err != nil {
 				return path, false
 			}
-			if _, e := os.Stat(path); e != nil {
+			if _, e := os.Lstat(path); e != nil {
 				return path, false
 			}
 		default:

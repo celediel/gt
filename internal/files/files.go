@@ -3,6 +3,7 @@ package files
 
 import (
 	"cmp"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strconv"
@@ -21,6 +22,16 @@ type File interface {
 }
 
 type Files []File
+
+func (fls Files) String() string {
+	var out = strings.Builder{}
+	for _, file := range fls {
+		out.WriteString(fmt.Sprintf("%s\t%s\t%s\n",
+			file.Date().Format(time.RFC3339), file.Name(), file.Path(),
+		))
+	}
+	return out.String()
+}
 
 func SortByModified(a, b File) int {
 	if a.Date().Before(b.Date()) {

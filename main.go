@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"git.burning.moe/celediel/gt/internal/filter"
 	"git.burning.moe/celediel/gt/internal/interactive"
 	"git.burning.moe/celediel/gt/internal/interactive/modes"
+	"golang.org/x/term"
 
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
@@ -45,8 +47,13 @@ var (
 	askconfirm, all            bool
 	workdir, ogdir             cli.Path
 	recursive                  bool
+	isTerminal                 bool
 
 	beforeAll = func(_ *cli.Context) error {
+		if term.IsTerminal(int(os.Stdout.Fd())) && term.IsTerminal(int(os.Stdin.Fd())) {
+			isTerminal = true
+		}
+
 		// setup log
 		log.SetReportTimestamp(true)
 		log.SetTimeFormat(time.TimeOnly)
@@ -58,6 +65,10 @@ var (
 			}
 		} else {
 			log.Errorf("unknown log level '%s' (possible values: debug, info, warn, error, fatal, default: warn)", loglvl)
+		}
+
+		if !isTerminal {
+			log.SetLevel(math.MaxInt32)
 		}
 
 		// ensure personal trash directories exist
@@ -111,6 +122,11 @@ var (
 					msg = "no files to show"
 				}
 				fmt.Fprintln(os.Stdout, msg)
+				return nil
+			}
+
+			if !isTerminal {
+				fmt.Fprint(os.Stdout, infiles.String())
 				return nil
 			}
 			selected, mode, err = interactive.Select(infiles, false, false, workdir, modes.Interactive)
@@ -243,6 +259,11 @@ var (
 
 			if len(fls) == 0 {
 				fmt.Fprintln(os.Stdout, msg)
+				return nil
+			}
+
+			if !isTerminal {
+				fmt.Fprint(os.Stdout, fls.String())
 				return nil
 			}
 

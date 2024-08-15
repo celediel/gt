@@ -26,12 +26,7 @@ func (f DiskFile) Path() string      { return f.path }
 func (f DiskFile) Date() time.Time   { return f.modified }
 func (f DiskFile) IsDir() bool       { return f.isdir }
 func (f DiskFile) Mode() fs.FileMode { return f.mode }
-func (f DiskFile) Filesize() int64 {
-	if f.isdir {
-		return 0
-	}
-	return f.filesize
-}
+func (f DiskFile) Filesize() int64   { return f.filesize }
 
 func (f DiskFile) String() string {
 	// this is unique enough because two files can't be named the same in the same directory
@@ -53,14 +48,22 @@ func NewDisk(path string) (DiskFile, error) {
 
 	name := filepath.Base(abs)
 	basePath := filepath.Dir(abs)
+	actualPath := filepath.Join(basePath, name)
+
+	var size int64
+	if info.IsDir() {
+		size = calculateDirSize(actualPath)
+	} else {
+		size = info.Size()
+	}
 
 	log.Debugf("%s (base:%s) (size:%s) (modified:%s) exists",
-		name, basePath, humanize.Bytes(uint64(info.Size())), info.ModTime())
+		name, basePath, humanize.Bytes(uint64(size)), info.ModTime())
 
 	return DiskFile{
 		name:     name,
-		path:     filepath.Join(basePath, name),
-		filesize: info.Size(),
+		path:     actualPath,
+		filesize: size,
 		modified: info.ModTime(),
 		isdir:    info.IsDir(),
 		mode:     info.Mode(),
@@ -130,10 +133,17 @@ func walkDir(dir string, fltr *filter.Filter) Files {
 		name := dirEntry.Name()
 		info, _ := dirEntry.Info()
 		if fltr.Match(info) {
+			var size int64
+			if info.IsDir() {
+				size = calculateDirSize(filepath.Join(actualPath, name))
+			} else {
+				size = info.Size()
+			}
+
 			files = append(files, DiskFile{
 				path:     actualPath,
 				name:     name,
-				filesize: info.Size(),
+				filesize: size,
 				modified: info.ModTime(),
 				isdir:    info.IsDir(),
 				mode:     info.Mode(),
@@ -167,13 +177,24 @@ func readDir(dir string, fltr *filter.Filter) Files {
 		}
 
 		path := filepath.Dir(filepath.Join(dir, name))
+		actualPath, e := filepath.Abs(path)
+		if e != nil {
+			continue
+		}
 
 		if fltr.Match(info) {
+			var size int64
+			if info.IsDir() {
+				size = calculateDirSize(filepath.Join(actualPath, name))
+			} else {
+				size = info.Size()
+			}
+
 			files = append(files, DiskFile{
 				name:     name,
-				path:     filepath.Join(path, name),
+				path:     filepath.Join(actualPath, name),
 				modified: info.ModTime(),
-				filesize: info.Size(),
+				filesize: size,
 				isdir:    info.IsDir(),
 				mode:     info.Mode(),
 			})

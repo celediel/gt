@@ -5,10 +5,13 @@ import (
 	"cmp"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/log"
 )
 
 type File interface {
@@ -33,6 +36,23 @@ func (fls Files) String() string {
 	return out.String()
 }
 
+func (fls Files) TotalSize() int64 {
+	var size int64
+
+	for _, file := range fls {
+		if file.IsDir() {
+			if d, ok := loadedDirSizes[file.Name()]; ok {
+				log.Debugf("%s: got %d from directorysizes", file.Name(), d.size)
+				size += d.size
+				continue
+			}
+		}
+		size += file.Filesize()
+	}
+
+	return size
+}
+
 func SortByModified(a, b File) int {
 	if a.Date().Before(b.Date()) {
 		return 1
@@ -52,15 +72,11 @@ func SortByModifiedReverse(a, b File) int {
 }
 
 func SortBySize(a, b File) int {
-	as := getSortingSize(a)
-	bs := getSortingSize(b)
-	return cmp.Compare(as, bs)
+	return cmp.Compare(a.Filesize(), b.Filesize())
 }
 
 func SortBySizeReverse(a, b File) int {
-	as := getSortingSize(a)
-	bs := getSortingSize(b)
-	return cmp.Compare(bs, as)
+	return cmp.Compare(b.Filesize(), a.Filesize())
 }
 
 func SortByName(a, b File) int {
@@ -123,9 +139,36 @@ func doNameSort(a, b File) int {
 	return cmp.Compare(aname, bname)
 }
 
-func getSortingSize(f File) int64 {
-	if f.IsDir() {
-		return -1
+func calculateDirSize(path string) int64 {
+	var size int64
+	info, err := os.Lstat(path)
+	if err != nil {
+		log.Error(err)
+		return 0
 	}
-	return f.Filesize()
+	if !info.IsDir() {
+		return 0
+	}
+
+	files, err := os.ReadDir(path)
+	if err != nil {
+		log.Error(err)
+		return 0
+	}
+
+	for _, file := range files {
+		filePath := filepath.Join(path, file.Name())
+		info, err := os.Lstat(filePath)
+		if err != nil {
+			log.Error(err)
+			return 0
+		}
+		if info.IsDir() {
+			size += calculateDirSize(filePath)
+		} else {
+			size += info.Size()
+		}
+	}
+
+	return size
 }

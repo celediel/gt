@@ -73,6 +73,7 @@ type model struct {
 	keys       keyMap
 	selected   map[string]bool
 	selectsize int64
+	totalsize  int64
 	readonly   bool
 	once       bool
 	filtering  bool
@@ -95,6 +96,7 @@ func newModel(fls files.Files, selectall, readonly, once bool, workdir string, m
 		selected:   map[string]bool{},
 		selectsize: 0,
 		files:      fls,
+		totalsize:  fls.TotalSize(),
 	}
 
 	m.termwidth, m.termheight = termSizes()
@@ -326,11 +328,13 @@ func (m model) header() string {
 			styleKey(m.keys.clfl),
 			styleKey(m.keys.apfl),
 		}
-		dot       = darkesttext.Render("•")
-		wideDot   = darkesttext.Render(" • ")
-		keysFmt   = strings.Join(keys, wideDot)
-		selectFmt = strings.Join(selectKeys, wideDot)
-		filterFmt = strings.Join(filterKeys, wideDot)
+		dot          = darkesttext.Render("•")
+		wideDot      = darkesttext.Render(" • ")
+		keysFmt      = strings.Join(keys, wideDot)
+		selectFmt    = strings.Join(selectKeys, wideDot)
+		filterFmt    = strings.Join(filterKeys, wideDot)
+		totalSize    = humanize.Bytes(uint64(m.totalsize))
+		selectedSize = fmt.Sprintf("%s/%s", humanize.Bytes(uint64(m.selectsize)), totalSize)
 	)
 
 	switch {
@@ -338,24 +342,23 @@ func (m model) header() string {
 		right = fmt.Sprintf(" Filtering %s %s", dot, filterFmt)
 	case m.mode == modes.Interactive:
 		right = fmt.Sprintf(" %s %s %s", keysFmt, dot, selectFmt)
-		left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, humanize.Bytes(uint64(m.selectsize)))
+		left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, selectedSize)
 	case m.mode == modes.Listing:
 		var filtered string
 		if m.filter != "" || m.filtering {
 			filtered = " (filtered)"
 		}
-		right = fmt.Sprintf(" Showing%s %d files in trash", filtered, len(m.fltrfiles))
+		right = fmt.Sprintf(" Showing%s %d files in trash (%s)", filtered, len(m.fltrfiles), totalSize)
 	default:
 		var wd string
 		if m.workdir != "" {
 			wd = " in " + dirs.UnExpand(m.workdir, "")
 		}
 		right = fmt.Sprintf(" %s%s %s %s", m.mode.String(), wd, dot, selectFmt)
-		left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, humanize.Bytes(uint64(m.selectsize)))
+		left = fmt.Sprintf("%d/%d %s %s", len(m.selected), len(m.fltrfiles), dot, selectedSize)
 	}
 
-	// offset of 2 again because of table border
-	spacerWidth = m.termwidth - lipgloss.Width(right) - lipgloss.Width(left) - poffset
+	spacerWidth = (m.termwidth - lipgloss.Width(right) - lipgloss.Width(left)) + 1
 	if spacerWidth <= 0 {
 		spacerWidth = 1 // always at least one space
 	}
@@ -662,14 +665,14 @@ func Show(fls files.Files, once bool, workdir string) error {
 
 func newRow(file files.File, workdir string) table.Row {
 	var time, size string
+	name := file.Name()
 	time = humanize.Time(file.Date())
 	if file.IsDir() {
-		size = bar
-	} else {
-		size = humanize.Bytes(uint64(file.Filesize()))
+		name += string(os.PathSeparator)
 	}
+	size = humanize.Bytes(uint64(file.Filesize()))
 	return table.Row{
-		dirs.PercentDecode(file.Name()),
+		dirs.PercentDecode(name),
 		dirs.UnExpand(filepath.Dir(file.Path()), workdir),
 		time,
 		size,

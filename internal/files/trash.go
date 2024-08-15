@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	sep                      = string(os.PathSeparator)
 	executePerm              = fs.FileMode(0755)
+	noExecutePerm            = fs.FileMode(0644)
 	noExecuteUserPerm        = fs.FileMode(0600)
 	randomStrLength   int    = 8
 	trashName         string = ".Trash"
@@ -39,6 +39,8 @@ Path={path}
 DeletionDate={date}
 `
 )
+
+var homeTrash = filepath.Join(xdg.DataHome, "Trash")
 
 type TrashInfo struct {
 	name, ogpath    string
@@ -56,12 +58,7 @@ func (t TrashInfo) TrashInfo() string { return t.trashinfo }
 func (t TrashInfo) Date() time.Time   { return t.trashed }
 func (t TrashInfo) IsDir() bool       { return t.isdir }
 func (t TrashInfo) Mode() fs.FileMode { return t.mode }
-func (t TrashInfo) Filesize() int64 {
-	if t.isdir {
-		return 0
-	}
-	return t.filesize
-}
+func (t TrashInfo) Filesize() int64   { return t.filesize }
 
 func (t TrashInfo) String() string {
 	return t.name + t.path + t.ogpath + t.trashinfo
@@ -69,12 +66,6 @@ func (t TrashInfo) String() string {
 
 func FindInAllTrashes(ogdir string, fltr *filter.Filter) Files {
 	var files Files
-
-	personalTrash := filepath.Join(xdg.DataHome, "Trash")
-
-	if fls, err := findTrash(personalTrash, ogdir, fltr); err == nil {
-		files = append(files, fls...)
-	}
 
 	for _, trash := range getAllTrashes() {
 		fls, err := findTrash(trash, ogdir, fltr)
@@ -142,17 +133,17 @@ func findTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
 	var files Files
 
 	infodir := filepath.Join(trashdir, "info")
-	dirs, err := os.ReadDir(infodir)
+	entries, err := os.ReadDir(infodir)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, dir := range dirs {
-		if dir.IsDir() || filepath.Ext(dir.Name()) != trashInfoExt {
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != trashInfoExt {
 			continue
 		}
 
-		path := filepath.Join(infodir, dir.Name())
+		path := filepath.Join(infodir, entry.Name())
 
 		// trashinfo is just an ini file, so
 		trashInfo, err := ini.Load(path)
@@ -161,39 +152,57 @@ func findTrash(trashdir, ogdir string, fltr *filter.Filter) (Files, error) {
 			continue
 		}
 
-		if section := trashInfo.Section(trashInfoSec); section != nil {
-			basepath := section.Key(trashInfoPath).String()
+		section := trashInfo.Section(trashInfoSec)
+		if section == nil {
+			continue
+		}
 
-			filename := filepath.Base(basepath)
-			trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trashInfoExt, "", 1)
-			info, err := os.Lstat(trashedpath)
-			if err != nil {
-				log.Errorf("error reading '%s': %s", trashedpath, err)
-				continue
+		basepath := dirs.PercentDecode(section.Key(trashInfoPath).String())
+		if !strings.HasPrefix(basepath, string(os.PathSeparator)) {
+			root, err := getRoot(trashdir)
+			if err == nil {
+				basepath = filepath.Join(root, basepath)
 			}
+		}
 
-			s := section.Key(trashInfoDate).Value()
-			date, err := time.ParseInLocation(trashInfoDateFmt, s, time.Local)
-			if err != nil {
-				log.Errorf("error parsing date '%s' in trashinfo file '%s': %s", s, path, err)
-				continue
-			}
+		filename := filepath.Base(basepath)
+		trashedpath := strings.Replace(strings.Replace(path, "info", "files", 1), trashInfoExt, "", 1)
+		info, err := os.Lstat(trashedpath)
+		if err != nil {
+			log.Errorf("error reading '%s': %s", trashedpath, err)
+			continue
+		}
 
-			if ogdir != "" && filepath.Dir(basepath) != ogdir {
-				continue
-			}
+		s := section.Key(trashInfoDate).Value()
+		date, err := time.ParseInLocation(trashInfoDateFmt, s, time.Local)
+		if err != nil {
+			log.Errorf("error parsing date '%s' in trashinfo file '%s': %s", s, path, err)
+			continue
+		}
 
-			if fltr.Match(info) {
-				files = append(files, TrashInfo{
-					name:      filename,
-					path:      trashedpath,
-					ogpath:    basepath,
-					trashinfo: path,
-					trashed:   date,
-					isdir:     info.IsDir(),
-					filesize:  info.Size(),
-				})
-			}
+		if ogdir != "" && filepath.Dir(basepath) != ogdir {
+			continue
+		}
+
+		var size int64
+		if d, ok := loadedDirSizes[info.Name()]; ok {
+			size = d.size
+		} else if info.IsDir() {
+			size = calculateDirSize(trashedpath)
+		} else {
+			size = info.Size()
+		}
+
+		if fltr.Match(info) {
+			files = append(files, TrashInfo{
+				name:      filename,
+				path:      trashedpath,
+				ogpath:    basepath,
+				trashinfo: path,
+				trashed:   date,
+				isdir:     info.IsDir(),
+				filesize:  size,
+			})
 		}
 	}
 
@@ -212,8 +221,21 @@ func trashFile(filename string) error {
 		return err
 	}
 
+	var path string
+	if trashDir == homeTrash {
+		path = filename
+	} else {
+		root, err := getRoot(trashDir)
+		if err != nil {
+			path = filename
+		} else {
+			path = strings.Replace(filename, root+string(os.PathSeparator), "", 1)
+		}
+	}
+	log.Debugf("fucking %s %s %s", filename, trashDir, path)
+
 	trashInfo, err := formatter.Format(trashInfoTemplate, formatter.Named{
-		"path": filename,
+		"path": path,
 		"date": time.Now().Format(trashInfoDateFmt),
 	})
 	if err != nil {
@@ -355,7 +377,7 @@ func getTrashDir(filename string) (string, error) {
 	if strings.Contains(filename, xdg.Home) {
 		trashDir = filepath.Join(xdg.DataHome, trashName[1:])
 	} else {
-		trashDir = filepath.Clean(root + sep + trashName)
+		trashDir = filepath.Clean(filepath.Join(root, trashName))
 	}
 
 	if _, err := os.Lstat(trashDir); err != nil {
@@ -406,12 +428,15 @@ func getRoot(path string) (string, error) {
 }
 
 func getAllTrashes() []string {
-	var trashes []string
-	usr, _ := user.Current()
+	trashes := []string{homeTrash}
+	usr, err := user.Current()
+	if err != nil {
+		log.Error(err)
+	}
 
-	_, err := mountinfo.GetMounts(func(mount *mountinfo.Info) (skip bool, stop bool) {
+	_, err = mountinfo.GetMounts(func(mount *mountinfo.Info) (skip bool, stop bool) {
 		point := mount.Mountpoint
-		trashDir := filepath.Clean(point + sep + trashName)
+		trashDir := filepath.Clean(filepath.Join(point, trashName))
 		userTrashDir := trashDir + "-" + usr.Uid
 
 		if _, err := os.Lstat(trashDir); err == nil {

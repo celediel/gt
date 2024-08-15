@@ -195,6 +195,7 @@ var (
 	}
 
 	after = func(_ *cli.Context) error {
+		files.WriteDirectorySizes()
 		return nil
 	}
 

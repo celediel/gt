@@ -1,8 +1,8 @@
-gt(1) ["gt version v0.0.2" ["User Commands"]]
+gt(1) ["gt version v0.0.3" ["User Commands"]]
 
 # NAME
 
-gt \- manual page for gt version 0.0.2
+gt \- manual page for gt version 0.0.3
 
 # DESCRIPTION
 
@@ -20,7 +20,7 @@ g(o)t(rash) is a simple, command line program to interface with the XDG Trash. F
 
 ## VERSION:
 
-0.0.2
+0.0.3
 
 ## AUTHOR:
 
